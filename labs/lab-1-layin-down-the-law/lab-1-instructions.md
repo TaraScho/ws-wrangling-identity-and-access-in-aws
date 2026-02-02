@@ -296,6 +296,62 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 
 ---
 
+## Exercise 5: Scenario 4 - PassRole + EC2 (New PassRole)
+
+The `iamws-ci-runner-user` can pass any role to EC2, allowing them to launch instances with privileged roles and harvest credentials.
+
+### Part A: Identify with pmapper
+
+Query for users who can pass roles:
+
+```bash
+pmapper query "who can do iam:PassRole with *"
+```
+
+Look for this line:
+```
+user/iamws-ci-runner-user IS authorized to call action iam:PassRole for resource *
+```
+
+### Part B: Understand via pathfinding.cloud
+
+1. Navigate to [pathfinding.cloud EC2-001](https://pathfinding.cloud/paths/ec2-001)
+2. Review the **Attack Steps** section
+
+### Part C: Exploit (Conceptual)
+
+The attack involves:
+1. Launch an EC2 instance with a privileged instance profile
+2. Connect to the instance (SSM or SSH)
+3. Query the instance metadata service for credentials
+4. Use those credentials to perform privileged actions
+
+```bash
+# Get credentials for the vulnerable user
+export $(printf "AWS_ACCESS_KEY_ID=%s AWS_SECRET_ACCESS_KEY=%s AWS_SESSION_TOKEN=%s" \
+  $(aws sts assume-role \
+    --role-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/iamws-ci-runner-role \
+    --role-session-name exploit \
+    --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]" \
+    --output text))
+
+# Verify identity
+aws sts get-caller-identity
+
+# List available instance profiles (to find privileged roles)
+aws iam list-instance-profiles --query 'InstanceProfiles[].InstanceProfileName'
+```
+
+**Note:** We won't actually launch an EC2 instance in this lab to avoid costs. The key insight is that the user can pass ANY role to EC2, which is the vulnerability.
+
+### Cleanup
+
+```bash
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+```
+
+---
+
 ## Wrap-up
 
 ### Summary: Findings to Fencin' the Frontier Remediations
