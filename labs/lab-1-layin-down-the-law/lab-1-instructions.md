@@ -354,16 +354,26 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 
 ## Wrap-up
 
-### Summary: Findings to Fencin' the Frontier Remediations
+### What You've Accomplished
 
-| Finding | Category | Lab 2 Exercise | Guardrail |
-|---------|----------|----------------|-----------|
-| AttachUserPolicy | Self-Escalation | Exercise 1 | **Permissions Boundary** |
-| CreateAccessKey | Principal Access | Exercise 2 | **Resource Constraint** |
-| UpdateAssumeRolePolicy | Principal Access | Exercise 3 | **Trust Policy** |
-| PassRole + EC2 | New PassRole | Exercise 4 | **Condition Key** |
+In this lab, you:
+1. Set up awspx and pmapper for IAM analysis
+2. Identified 4 privilege escalation paths using pmapper
+3. Understood each path via pathfinding.cloud
+4. Exploited each vulnerability to demonstrate the risk
 
-Continue to **Lab 2 - Fencin' the Frontier** to apply guardrails and remediate these vulnerabilities.
+### Summary: Lab 1 to Lab 2 Mapping
+
+| Vulnerability | Category | User | Lab 2 Guardrail |
+|---------------|----------|------|-----------------|
+| AttachUserPolicy | Self-Escalation | iamws-dev-self-service-user | Permissions Boundary |
+| CreateAccessKey | Principal Access | iamws-team-onboarding-user | Resource Constraint |
+| UpdateAssumeRolePolicy | Principal Access | iamws-integration-admin-user | Trust Policy |
+| PassRole + EC2 | New PassRole | iamws-ci-runner-user | Condition Key |
+
+### Next Steps
+
+Continue to **[Lab 2 - Fencin' the Frontier](../lab-2-fencin-the-frontier/lab-2-instructions.md)** to apply guardrails and remediate these vulnerabilities.
 
 ---
 
