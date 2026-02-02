@@ -1,122 +1,84 @@
-# Lab 1 - Layin' Down the Law: Identifying IAM Misconfigurations
+# Lab 1 - Layin' Down the Law: Identifying and Exploiting IAM Misconfigurations
 
 **Duration:** 40 minutes
 
 ## Overview
 
-Use **pmapper** (Principal Mapper) and **pathfinding.cloud** to identify privilege escalation paths in intentionally vulnerable IAM configurations. This lab focuses on **finding and understanding** misconfigurations—Fencin' the Frontier (Lab 2) will cover exploitation and remediation.
+Use **awspx**, **pmapper** (Principal Mapper), and **pathfinding.cloud** to identify and exploit privilege escalation paths in intentionally vulnerable IAM configurations.
 
 **Learning Objectives:**
-1. Deploy and scan IAM infrastructure with pmapper
-2. Interpret privilege escalation findings
-3. Categorize findings into the 5 escalation categories
-4. Use pathfinding.cloud to understand attack paths
+1. Visualize IAM relationships with awspx
+2. Scan and analyze IAM with pmapper
+3. Identify privilege escalation paths
+4. Exploit misconfigurations to understand the risk
 
 ---
 
-## Setup
+## Prerequisites
 
-### Step 1: Configure AWS Credentials
-
-Ensure your AWS CLI is configured with credentials for your sandbox account:
-
-```bash
-aws sts get-caller-identity
-```
-
-You should see your account ID and IAM principal. These credentials need permissions to create IAM resources.
-
-### Step 2: Deploy Vulnerable Infrastructure
-
-> **IMPORTANT:** 🚨 This lab deploys intentionally vulnerable IAM infrastructure to your sandbox account. Do not run this in your production account.
-
-1. Navigate to the terraform directory:
-   ```bash
-   cd labs/terraform
-   ```
-
-2. Initialize and apply Terraform:
-   ```bash
-   terraform init
-   terraform apply
-   ```
-
-3. When prompted, type `yes` to confirm the resources to be created in AWS.
-
-### Step 3: Install pmapper
-
-Install Principal Mapper (pmapper) from NCC Group:
-
-```bash
-pip install principalmapper
-```
-
-Verify installation:
-```bash
-pmapper --version
-```
+Complete [Lab 0 - Prerequisites](../lab-0-prerequisites/lab-0-prerequisites.md) before starting this lab. If you are taking this workshop at Wild West Hackin Fest, your environment is already preconfigured.
 
 ---
 
-## Exercise 1: Scan AWS with pmapper
+## Exercise 1: Setup awspx and pmapper
 
-### Part A: Build the IAM Graph
+### Part A: Ingest AWS Data with awspx
 
-pmapper analyzes IAM relationships by building a graph of principals and their permissions.
+awspx visualizes IAM relationships as an interactive graph.
+
+1. Run the awspx ingest command to pull IAM data from your AWS account:
+   ```bash
+   docker exec -it awspx awspx ingest
+   ```
+
+   Expected output:
+   ```
+   [*] Collecting IAM data...
+   [*] Processing 90 resources...
+   [*] Graph updated successfully
+   ```
+
+2. Open awspx in your browser at [http://localhost](http://localhost)
+
+3. Verify the graph loaded by searching for `iamws` in the search box - you should see the workshop IAM users
+
+### Part B: Create pmapper Graph
+
+pmapper analyzes IAM relationships and finds privilege escalation paths.
 
 1. Create a graph of your AWS account:
    ```bash
    pmapper graph create
    ```
 
-   This command:
-   - Enumerates all IAM users, roles, and groups
-   - Maps all policies (managed and inline)
-   - Builds a graph of permission relationships
-
 2. View the graph summary:
    ```bash
    pmapper graph display
    ```
 
-### Part B: Find Privilege Escalation Paths
+   Expected output:
+   ```
+   Graph Data for Account:  <your-account-id>
+     # of Nodes:              90 (16 admins)
+     # of Edges:              317
+     # of Groups:             3
+     # of (tracked) Policies: 75
+   ```
+
+### Part C: Run pmapper Analysis
 
 1. Run the privilege escalation analysis:
    ```bash
-   pmapper analysis find_privesc
+   pmapper analysis --output-type text
    ```
 
-2. Save the output for reference:
-   ```bash
-   pmapper analysis find_privesc > pmapper-findings.txt
+2. Review the findings. Look for users with names starting with `iamws-`:
    ```
-
-3. Review the findings. You should see output like:
+   iamws-dev-self-service-user can escalate privileges by attaching a different policy to themselves
+   iamws-team-onboarding-user can escalate privileges by creating access keys for another user
+   iamws-integration-admin-user can escalate privileges by updating the trust policy of a role
+   iamws-ci-runner-user can escalate privileges by passing a role to EC2
    ```
-   User privesc7-AttachUserPolicy can escalate privileges by attaching a different policy to themselves
-   User privesc14-UpdatingAssumeRolePolicy can escalate privileges by updating the trust policy of role ...
-   User privesc3-CreateEC2WithExistingIP can escalate privileges by creating an EC2 instance with role ...
-   ```
-
-### Part C: Query Specific Paths
-
-pmapper can query specific permission relationships:
-
-1. Check if a user can reach admin:
-   ```bash
-   pmapper query "who can do iam:* with *"
-   ```
-
-2. Check what a specific user can do:
-   ```bash
-   pmapper query "can privesc7-AttachUserPolicy do iam:AttachUserPolicy with *"
-   ```
-
-3. Continue exploring the pmapper findings. Consider questions like the following:
-
-- How many privilege escalation paths did pmapper find?
-- Which users have the most escalation options?
-- Which paths are the most dangerous?
 
 ---
 
