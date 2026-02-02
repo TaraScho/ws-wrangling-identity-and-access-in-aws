@@ -1,0 +1,479 @@
+WRANGLING IDENTITY AND ACCESS 
+IN THE AWS CLOUD
+
+Part 1: Layin’ down the law
+
+What is 
+IAM?
+AWS IAM (Identity and Access Management) controls who can do what to which resources.
+- Knows who you are (authentication)
+- Knows what you're allowed to do (authorization)
+- Enforces different rules for access (fine-grained access)
+
+Why this matters
+In the cloud identity is the perimeter
+Long-lived cloud credentials are the are the most common cause of publicly documented cloud security breaches 
+Long lived creds
+01
+Initial access
+02
+Misconfigured Resources
+03
+Exposed access keys belonging to IAM users remain the primary initial access vector in AWS
+Publicly accessible resources continue to be the source of a large number of high-profile data breaches
+For example…
+Source - state of cloud security 2025 - https://www.datadoghq.com/state-of-cloud-security/ - can update with 2026 version upon release
+
+Crafting IAM policies with PARC
+Principal
+The entity or WHO is allowed/denied
+Actions
+The verbs allowed or denied access
+Resources
+Cloud resources the actions apply to
+Condition
+Optional constraints that further refine when or where the policy is in effect.
+{
+  "Statement": [
+    {
+      "Principal": {
+        "AWS": "arn:aws:iam::123456789012:role/sre-role"
+      },
+      "Action": "lambda:InvokeFunction",
+      "Resource": "arn:aws:lambda:us-east-1:123456789012:function:test_lambda",
+      "Condition": {
+        "IpAddress": {
+          "aws:SourceIp": "10.0.0.0/8"
+        }
+      }
+    }
+  ]
+}
+
+IAM Users 
+IAM Roles (temporary credentials)
+AWS Services (like Lambda or EC2)
+Federated identities (SSO users)
+Anonymous (public access - usually bad!)
+
+Principals can be…
+"Principal": {
+  "AWS": "arn:aws:iam::123456789012:user/alice"
+}
+
+s3:GetObject — Download a file from S3
+ec2:StartInstances — Start an EC2 instance
+iam:CreateUser — Create a new IAM user
+
+Actions follow the pattern service:operation
+"Action": ["s3:GetObject", "s3:ListBucket"]
+
+"Action": “ec2:Describe*”
+
+Wildcards match multiple actions
+
+
+s3:GetObject — Download a file from S3
+ec2:StartInstances — Start an EC2 instance
+iam:CreateUser — Create a new IAM user
+
+Resources are identified by ARN (Amazon Resource Name):
+"Action": ["s3:GetObject", "s3:ListBucket"]
+
+"Action": “ec2:Describe*”
+
+Wildcards match multiple actions
+
+
+ALLOW VS DENY
+Start with Deny
+Evaluate the policies
+Deny on Explicit
+Allow on Explicit
+Deny 
+Because not allowed
+Final Deny
+Final Allow
+No
+No
+Yes
+Yes
+You will see this diagram a lot in AWS Documents this is the single account level model
+
+CONTENIDO DE ESTA PLANTILLA
+Fuentes
+Para ver las tipografías correctas en PowerPoint, descárgalas e instálalas en tu equipo
+Recursos usados y alternativos
+Una variedad de recursos gráficos acordes al estilo de nuestro diseño
+Diapositiva de agradecimientos
+La debes conservar para dar los créditos correspondientes a nuestro diseño
+Colores
+Todos los colores que se han usado en esta presentación
+Recursos infográficos
+Su tamaño y color se pueden editar
+Iconos personalizables
+Están clasificados por temas para que puedas utilizarlos en todo tipo de presentaciones
+Una estructura de diapositivas basada en defensa de tesis	
+Puedes eliminar esta diapositiva cuando hayas terminado de editar la presentación
+
+Más información:SLIDESGO  |  SLIDESGO SCHOOL  |  FAQS
+Visita nuestros proyectos:FREEPIK | FLATICON | STORYSET | WEPIK | VIDFY
+
+Puedes describir en qué consiste la sección aquí
+Análisis de los resultados
+01
+Puedes describir en qué consiste la sección aquí
+Objetivos
+TABLA DE CONTENIDOS
+02
+Puedes describir en qué consiste la sección aquí
+Metodología
+03
+04
+Puedes describir en qué consiste la sección aquí
+Conclusiones
+
+DESCRIPCIÓN DE ANTECEDENTES
+Mercurio es el planeta más cercano al Sol y el más pequeño del sistema solar. El nombre de este planeta no tiene nada que ver con el metal líquido
+La situación de Mercurio
+Venus tiene un nombre precioso y es el segundo más cercano al Sol. Es un planeta caluroso y su atmósfera es extremadamente venenosa
+El caso de Venus
+Júpiter es un gigante gaseoso y el planeta más grande del sistema solar. Es el cuarto objeto más brillante del cielo nocturno
+El contexto de Júpiter
+
+INTRODUCCIÓN
+Aquí puedes añadir una breve descripción del tema del que quieras hablar. Por ejemplo, si quieres hablar sobre Mercurio, puedes decir que es el planeta más cercano al Sol y el más pequeño del sistema solar
+
+OBJETIVOS
+01
+Describe en qué consiste esta sección si lo necesitas
+
+EL CONTEXTO Y SUS PROBLEMAS
+La situación
+Júpiter es un gigante gaseoso y el planeta más grande del sistema solar. Es el cuarto objeto más brillante del cielo nocturno
+Neptuno es el planeta más lejano del Sol
+Neptuno
+01
+Saturno
+02
+Plutón
+03
+Saturno es un gigante gaseoso
+Plutón se considera un planeta enano
+Problemas
+
+Está lleno de polvo de óxido de hierro, que le da al planeta su tono rojizo
+Marte
+La Tierra es el tercer planeta más cercano al Sol y el único que alberga vida
+La Tierra
+HIPÓTESIS
+Mercurio es el planeta más cercano al Sol y el más pequeño del sistema solar
+Mercurio
+Venus tiene un nombre precioso y es el segundo planeta más cercano al Sol
+Venus
+01
+03
+02
+04
+
+Aunque sea rojo, Marte es en realidad uno de los planetas más fríos
+La mujer gaucha
+OBJETIVOS DEL ESTUDIO
+02
+Venus tiene un nombre precioso y es el segundo planeta más cercano al Sol
+Vida original
+Mercurio es el planeta más cercano al sol y el más pequeño del sistema solar
+Expresión de gaucho
+03
+01
+
+AUTOR (AÑO). Título de la publicación. Editorial
+Júpiter es un gigante gaseoso y el planeta más grande
+AUTOR (AÑO). Título de la publicación. Editorial
+Saturno es un gigante gaseoso y tiene varios anillos
+AUTOR (AÑO). Título de la publicación. Editorial
+Neptuno es el planeta más lejano del Sol
+AUTOR (AÑO). Título de la publicación. Editorial
+El Sol es la estrella en el centro del sistema solar
+AUTOR (AÑO). Título de la publicación. Editorial
+Ceres se encuentra en el cinturón de asteroides principal
+
+REVISIÓN DE LITERATURA
+
+Nuestra visión
+Marte es en realidad un lugar frío
+Teoría 1
+MARCO TEÓRICO
+Palabras clave
+Teorías relevantes
+Teoría 2
+Saturno es gaseoso compuesto de hidrógeno y helio
+Venus es el segundo planeta más cercano al Sol
+Neptuno está muy alejado
+El Sol está en el centro 
+Plutón es muy pequeño
+Vivimos en la Tierra
+
+PLANIFICACIÓN
+Tarea
+Descripción
+Fecha
+Estado
+Tarea 1
+Marte es un planeta muy frío
+1 de enero - 15 de marzo
+Finalizado
+Tarea 2
+Nosotros vivimos en la Tierra
+1 de febrero - 10 de abril
+En progreso
+Tarea 3
+Venus tiene un nombre bonito
+15 de mayo - 30 de junio
+Pospuesto
+
+—ALGUIEN FAMOSO
+“Venus tiene un nombre precioso y es el segundo planeta más cercano al Sol. Es un planeta caluroso, incluso más que Mercurio”
+
+Teoría
+Mercurio es el planeta más cercano al Sol y el más pequeño
+METODOLOGÍA
+Mercurio
+Datos
+Venus tiene un nombre precioso, pero una atmósfera muy venenosa
+Método
+Saturno está compuesto principalmente por hidrógeno y helio
+Análisis
+Júpiter es un gigante gaseoso y el planeta más grande de todos
+
+ANÁLISIS Y DESARROLLO
+Fase 01
+Mercurio es el planeta más cercano al Sol y el más pequeño de todos 
+Venus tiene un nombre precioso y es el segundo planeta
+La Tierra es el tercer planeta más cercano al Sol
+Fase 02
+Marte tiene polvo de óxido de hierro, que le da al planeta su color
+Júpiter es un gigante gaseoso y el planeta más grande de todos
+Saturno es un gigante gaseoso y tiene muchos anillos
+
+ANÁLISIS Y DESARROLLO
+Sigue el enlace del gráfico para modificar sus datos y luego pega el nuevo aquí. Para más información, haz clic aquí
+Mercurio es un planeta pequeño
+Mercurio
+Venus tiene un nombre precioso
+Venus
+Júpiter es un gigante gaseoso
+Júpiter
+Marte es en realidad un lugar frío
+Marte
+
+70%
+20%
+La Tierra
+ANÁLISIS DE RESULTADOS
+El Sol está en el centro de todos
+El Sol
+Plutón es un planeta enano
+Plutón
+Es el planeta más lejano del Sol
+Neptuno 
+Galaxia
+Mercurio
+50%
+Sigue el enlace del gráfico para modificar sus datos y luego pega el nuevo aquí. Para más información, haz clic aquí
+
+DISCUSIÓN
+Plutón ahora se considera un planeta enano
+Todos orbitamos alrededor del Sol
+La Luna es nuestro único satélite natural
+Plutón
+Júpiter es un gigante gaseoso
+Neptuno está muy alejado del Sol
+Pluto ahora es un planeta enano
+Júpiter
+Mercurio es muy pequeño
+Discusión 1
+01
+Saturno tiene anillos
+Discusión 2
+Neptuno está muy lejos
+Discusión 3
+Marte es un lugar frío
+Discusión 4
+02
+03
+04
+
+CONCLUSIONES
+Neptuno es el planeta más lejano del Sol
+Neptuno
+El Sol es la estrella en el centro del sistema
+El Sol
+Plutón ahora es un planeta enano
+Plutón
+Mercurio es el planeta más cercano al Sol
+Mercurio
+Marte es en realidad un lugar frío
+Marte
+Saturno es un gigante gaseoso con anillos
+Saturno
+
+BIBLIOGRAFÍA
+AUTOR (AÑO). Título de la publicación. Editorial
+AUTOR (AÑO). Título de la publicación. Editorial
+AUTOR (AÑO). Título de la publicación. Editorial
+AUTOR (AÑO). Título de la publicación. Editorial
+AUTOR (AÑO). Título de la publicación. Editorial
+AUTOR (AÑO). Título de la publicación. Editorial
+AUTOR (AÑO). Título de la publicación. Editorial
+
+PALABRAS ASOMBROSAS
+
+UNA IMAGEN VALE MÁS QUE MIL PALABRAS
+
+150 000
+Un gran número puede ayudarte a captar la atención del público
+
+9h 55m 23s
+es el periodo de rotación de Júpiter
+333 000 000
+son las Tierras que caben en la masa del Sol
+
+ÁREA DE ESTUDIO
+Puedes reemplazar la imagen en la pantalla por otra. Haz clic derecho en ella y luego elige "Reemplazar imagen" para que puedas agregar la tuya
+Video explicativo
+
+¡Gracias!
+¿Tienes alguna pregunta?
+tuemail@freepik.com+91  620 421 838 tuempresa.com
+Por favor, conserva esta diapositiva para atribuirnos
+
+RECURSOS ALTERNATIVOS
+A continuación, se muestra una variedad de recursos alternativos cuyo estilo encaja en esta plantilla:
+Vectores:
+Hand drawn gaucho background
+Hand drawn gaucho drinking mate illustration
+Hand drawn gaucho character collection
+Hand drawn gaucho drinking mate illustration
+
+RECURSOS
+¿Te gustaron los recursos de esta plantilla? Consíguelos gratis en nuestras otras webs:
+Vectores:
+Hand drawn gaucho background
+Hand drawn gaucho dancing illustration I
+Hand drawn gaucho dancing illustration II
+Hand drawn gaucho cowboy illustration
+Hand drawn gaucho drinking mate illustration
+Hand drawn gaucho cowboy illustration
+
+Fotos:
+Cowboy silhouette with horse against warm light
+Close-up up of delicious alfajores concept
+Delicious alfajores concept arrangement
+
+For more information about editing slides, please read our FAQs or visit Slidesgo School:
+https://slidesgo.com/faqs and https://slidesgo.com/slidesgo-school
+Instructions for use
+If you have a free account, in order to use this template, you must credit Slidesgo by keeping the Thanks slide. Please refer to the next slide to read the instructions for premium users.
+As a Free user, you are allowed to:
+- Modify this template.
+- Use it for both personal and commercial projects.
+You are not allowed to:
+- Sublicense, sell or rent any of Slidesgo Content (or a modified version of Slidesgo Content).
+- Distribute Slidesgo Content unless it has been expressly authorized by Slidesgo.
+- Include Slidesgo Content in an online or offline database or file.
+- Offer Slidesgo templates (or modified versions of Slidesgo templates) for download.
+- Acquire the copyright of Slidesgo Content.
+
+As a Premium user, you can use this template without attributing Slidesgo or keeping the "Thanks" slide.
+You are allowed to:
+Modify this template.
+Use it for both personal and commercial purposes.
+Hide or delete the “Thanks” slide and the mention to Slidesgo in the credits.
+Share this template in an editable format with people who are not part of your team.
+You are not allowed to:
+Sublicense, sell or rent this Slidesgo Template (or a modified version of this Slidesgo Template).
+Distribute this Slidesgo Template (or a modified version of this Slidesgo Template) or include it in a database or in any other product or service that offers downloadable images, icons or presentations that may be subject to distribution or resale.
+Use any of the elements that are part of this Slidesgo Template in an isolated and separated way from this Template.
+Register any of the elements that are part of this template as a trademark or logo, or register it as a work in an intellectual property registry or similar.
+
+
+For more information about editing slides, please read our FAQs or visit Slidesgo School:
+https://slidesgo.com/faqs and https://slidesgo.com/slidesgo-school
+Instructions for use (premium users)
+
+This presentation has been made using the following fonts:
+
+Patua One
+(https://fonts.google.com/specimen/Patua+One)
+
+Anek Tamil
+(https://fonts.google.com/specimen/Anek+Tamil)
+#cc5a3b
+#eb7151
+#3d1e09
+#bc7646
+#f0d7bf
+#c1a487
+#5d775a
+#32502e
+#d69a72
+#ffffff
+Fonts & colors used
+
+Create your Story with our illustrated concepts. Choose the style you like the most, edit its colors, pick the background and layers you want to show and bring them to life with the animator panel! It will boost your presentation. Check out how it works.
+Storyset
+Pana
+Amico
+Bro
+Rafiki
+Cuate
+
+You can easily resize these resources without losing quality. To change the color, just ungroup the resource and click on the object you want to change. Then, click on the paint bucket and select the color you want. Group the resource again when you’re done. You can also look for more infographics on Slidesgo.
+Use our editable graphic resources...
+
+
+
+JANUARY
+FEBRUARY
+MARCH
+APRIL
+MAY
+JUNE
+PHASE 1
+PHASE 2
+Task 1
+Task 2
+Task 1
+Task 2
+JANUARY
+FEBRUARY
+MARCH
+APRIL
+PHASE 1
+Task 1
+Task 2
+
+
+
+You can resize these icons without losing quality.
+You can change the stroke and fill color; just select the icon and click on the paint bucket/pen.
+In Google Slides, you can also use Flaticon’s extension, allowing you to customize and add even more icons.
+...and our sets of editable icons
+
+Educational Icons
+Medical Icons
+
+Business Icons
+Teamwork Icons
+
+Help & Support Icons
+Avatar Icons
+
+Creative Process Icons
+Performing Arts Icons
+
+Nature Icons
+
+SEO & Marketing Icons
+
