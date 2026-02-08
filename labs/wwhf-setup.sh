@@ -1,5 +1,5 @@
 #!/bin/bash
-# setup-security-tools.sh
+# wwhf-setup.sh
 # Makes awspx, pmapper, and terraform available to ssm-user
 
 set -e  # Exit on error
@@ -10,7 +10,8 @@ echo "Setting up awspx, pmapper, and terraform for ssm-user..."
 # 1. Fix pmapper venv (install missing dependencies)
 echo ""
 echo "[1/4] Fixing pmapper virtual environment..."
-if [ -d "/home/ubuntu/workspace/PMapper/venv" ]; then
+# Run the check as ubuntu user since ssm-user can't access /home/ubuntu
+if sudo -u ubuntu test -d "/home/ubuntu/workspace/PMapper/venv"; then
     sudo -u ubuntu bash -c "cd /home/ubuntu/workspace/PMapper && source venv/bin/activate && pip install -q -r requirements.txt"
     echo "✓ pmapper dependencies installed"
 else
@@ -31,7 +32,7 @@ if ! command -v terraform &> /dev/null; then
     rm -f terraform_${TERRAFORM_VERSION}_linux_amd64.zip
     echo "✓ terraform ${TERRAFORM_VERSION} installed"
 else
-    echo "✓ terraform already installed ($(terraform version -json | grep -o '"version":"[^"]*' | cut -d'"' -f4))"
+    echo "✓ terraform already installed ($(terraform version -json 2>/dev/null | grep -o '"version":"[^"]*' | cut -d'"' -f4 || echo 'version check failed'))"
 fi
 
 # 3. Create pmapper wrapper script
@@ -45,24 +46,16 @@ EOF
 sudo chmod +x /usr/local/bin/pmapper
 echo "✓ pmapper wrapper created"
 
-# 4. Create awspx wrapper (handles sudo automatically)
+# 4. Add awspx alias to bashrc if not present
 echo ""
-echo "[4/4] Creating awspx wrapper..."
-sudo tee /usr/local/bin/awspx-wrapper > /dev/null << 'EOF'
-#!/bin/bash
-# Wrapper to run awspx with sudo automatically
-sudo /usr/local/bin/awspx "$@"
-EOF
-sudo chmod +x /usr/local/bin/awspx-wrapper
-echo "✓ awspx wrapper created"
-
-# 5. Add alias for awspx if user wants to use 'awspx' instead of 'awspx-wrapper'
-# (Optional - uncomment if you want 'awspx' to work directly)
+echo "[4/4] Setting up awspx alias..."
 if ! grep -q "alias awspx=" ~/.bashrc 2>/dev/null; then
     echo "" >> ~/.bashrc
     echo "# Security tools aliases" >> ~/.bashrc
     echo "alias awspx='sudo /usr/local/bin/awspx'" >> ~/.bashrc
     echo "✓ awspx alias added to ~/.bashrc"
+else
+    echo "✓ awspx alias already exists"
 fi
 
 echo ""
@@ -71,7 +64,7 @@ echo ""
 echo "Available commands:"
 echo "  • terraform --version"
 echo "  • pmapper --help"
-echo "  • awspx --help  (use 'awspx' if you sourced .bashrc, otherwise 'awspx-wrapper')"
+echo "  • awspx --help  (or run: source ~/.bashrc to activate alias)"
 echo ""
-echo "To activate the awspx alias in current session, run: source ~/.bashrc"
+echo "To use awspx immediately, run: source ~/.bashrc"
 echo ""
