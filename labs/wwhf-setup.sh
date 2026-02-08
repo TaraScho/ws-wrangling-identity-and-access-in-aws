@@ -1,178 +1,121 @@
 #!/bin/bash
-# wwhf-setup.sh
-# Makes awspx, pmapper, and terraform available to ssm-user
+# fresh-install-security-tools.sh
+# Clean installation of security tools for ssm-user (no sudo wrappers needed)
 
-set -e  # Exit on error
+set -e
 
-echo "=== Security Tools Setup Script ==="
+echo "=== Fresh Security Tools Installation ==="
 echo ""
 
-# ============================================================================
-# STEP 0: AWS Credentials Setup & Validation
-# ============================================================================
-echo "[0/4] Setting up AWS credentials..."
-echo ""
+# Setup directory structure
+TOOLS_DIR="$HOME/security-tools"
+mkdir -p "$TOOLS_DIR"/{bin,venvs}
 
-# Check if ssm-user has AWS credentials configured
-if [ ! -f ~/.aws/credentials ] && [ -z "$AWS_ACCESS_KEY_ID" ]; then
-    echo "⚠ No AWS credentials found for ssm-user!"
-    echo ""
-    echo "Please configure your AWS credentials first:"
-    echo "  Option 1: Run 'aws configure' to set up credentials"
-    echo "  Option 2: Set environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)"
-    echo "  Option 3: Use aws-vault or similar tool"
-    echo ""
-    exit 1
-fi
+# Add to PATH for current session
+export PATH="$TOOLS_DIR/bin:$PATH"
 
-# Validate credentials work
-echo "  Testing AWS credentials..."
+# ============================================================================
+# 0. Validate AWS credentials
+# ============================================================================
+echo "[0/3] Validating AWS credentials..."
 if ! aws sts get-caller-identity &>/dev/null; then
-    echo "  ✗ AWS credentials are invalid or expired"
-    echo ""
-    echo "Current AWS identity check failed. Please verify your credentials:"
-    echo "  Run: aws sts get-caller-identity"
-    echo ""
+    echo "✗ AWS credentials not configured or invalid"
+    echo "  Run: aws configure"
     exit 1
 fi
-
-# Show what identity we're using
-AWS_IDENTITY=$(aws sts get-caller-identity --output json 2>/dev/null)
-AWS_ARN=$(echo "$AWS_IDENTITY" | grep -o '"Arn": "[^"]*' | cut -d'"' -f4)
-AWS_ACCOUNT=$(echo "$AWS_IDENTITY" | grep -o '"Account": "[^"]*' | cut -d'"' -f4)
-
-echo "  ✓ AWS credentials validated"
-echo "    Identity: $AWS_ARN"
-echo "    Account:  $AWS_ACCOUNT"
-echo ""
-
-# Function to copy credentials to a user's home
-copy_credentials_to_user() {
-    local target_user=$1
-    local target_home=$2
-    
-    echo "  Copying credentials to ${target_user} user (${target_home})..."
-    sudo mkdir -p ${target_home}/.aws
-    sudo chmod 755 ${target_home}/.aws
-    
-    # Copy credentials if they exist in a file
-    if [ -f ~/.aws/credentials ]; then
-        sudo cp ~/.aws/credentials ${target_home}/.aws/credentials
-        sudo chown ${target_user}:${target_user} ${target_home}/.aws/credentials 2>/dev/null || sudo chown ${target_user} ${target_home}/.aws/credentials
-        sudo chmod 600 ${target_home}/.aws/credentials
-        echo "    ✓ Copied ~/.aws/credentials"
-    fi
-    
-    # Copy config if it exists
-    if [ -f ~/.aws/config ]; then
-        sudo cp ~/.aws/config ${target_home}/.aws/config
-        sudo chown ${target_user}:${target_user} ${target_home}/.aws/config 2>/dev/null || sudo chown ${target_user} ${target_home}/.aws/config
-        sudo chmod 600 ${target_home}/.aws/config
-        echo "    ✓ Copied ~/.aws/config"
-    fi
-    
-    # If using environment variables, create credentials file from them
-    if [ -n "$AWS_ACCESS_KEY_ID" ] && [ ! -f ${target_home}/.aws/credentials ]; then
-        echo "    Creating credentials file from environment variables..."
-        sudo tee ${target_home}/.aws/credentials > /dev/null << EOF
-[default]
-aws_access_key_id = $AWS_ACCESS_KEY_ID
-aws_secret_access_key = $AWS_SECRET_ACCESS_KEY
-${AWS_SESSION_TOKEN:+aws_session_token = $AWS_SESSION_TOKEN}
-EOF
-        sudo chown ${target_user}:${target_user} ${target_home}/.aws/credentials 2>/dev/null || sudo chown ${target_user} ${target_home}/.aws/credentials
-        sudo chmod 600 ${target_home}/.aws/credentials
-        echo "    ✓ Created credentials file from environment"
-    fi
-}
-
-# Copy credentials to ubuntu user (for pmapper)
-copy_credentials_to_user "ubuntu" "/home/ubuntu"
-
-# Copy credentials to root user (for awspx)
-copy_credentials_to_user "root" "/root"
-
-# Validate ubuntu user can authenticate
-echo "  Validating ubuntu user can authenticate..."
-if sudo -u ubuntu aws sts get-caller-identity &>/dev/null; then
-    UBUNTU_ARN=$(sudo -u ubuntu aws sts get-caller-identity --output json 2>/dev/null | grep -o '"Arn": "[^"]*' | cut -d'"' -f4)
-    echo "    ✓ ubuntu user authenticated as: $UBUNTU_ARN"
-else
-    echo "    ✗ ubuntu user cannot authenticate with AWS"
-    echo ""
-    echo "This might be an issue with credential configuration."
-    exit 1
-fi
-
-# Validate root user can authenticate
-echo "  Validating root user can authenticate..."
-if sudo aws sts get-caller-identity &>/dev/null; then
-    ROOT_ARN=$(sudo aws sts get-caller-identity --output json 2>/dev/null | grep -o '"Arn": "[^"]*' | cut -d'"' -f4)
-    echo "    ✓ root user authenticated as: $ROOT_ARN"
-else
-    echo "    ✗ root user cannot authenticate with AWS"
-    echo ""
-    echo "This might be an issue with credential configuration."
-    exit 1
-fi
-
+AWS_ARN=$(aws sts get-caller-identity --query Arn --output text)
+echo "✓ Authenticated as: $AWS_ARN"
 echo ""
 
 # ============================================================================
-# STEP 1: Fix pmapper venv
+# 1. Install Terraform
 # ============================================================================
-echo "[1/4] Fixing pmapper virtual environment..."
-if sudo -u ubuntu test -d "/home/ubuntu/workspace/PMapper/venv"; then
-    echo "  Reinstalling pmapper with all dependencies..."
-    sudo -u ubuntu bash -c "cd /home/ubuntu/workspace/PMapper && source venv/bin/activate && pip install -q --upgrade pip && pip install -q -e ."
-    echo "  ✓ pmapper fully installed"
-else
-    echo "  ✗ pmapper venv not found at expected location"
-    exit 1
-fi
-
-echo ""
-
-# ============================================================================
-# STEP 2: Install terraform
-# ============================================================================
-echo "[2/4] Installing terraform..."
-if ! command -v terraform &> /dev/null; then
+echo "[1/3] Installing terraform..."
+if [ ! -f "$TOOLS_DIR/bin/terraform" ]; then
     cd /tmp
     TERRAFORM_VERSION="1.7.4"
     wget -q "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
     unzip -q terraform_${TERRAFORM_VERSION}_linux_amd64.zip
-    sudo mv terraform /usr/local/bin/
-    sudo chmod +x /usr/local/bin/terraform
+    mv terraform "$TOOLS_DIR/bin/"
+    chmod +x "$TOOLS_DIR/bin/terraform"
     rm -f terraform_${TERRAFORM_VERSION}_linux_amd64.zip
     echo "  ✓ terraform ${TERRAFORM_VERSION} installed"
 else
     echo "  ✓ terraform already installed"
 fi
-
 echo ""
 
 # ============================================================================
-# STEP 3: Create pmapper wrapper
+# 2. Install pmapper (fresh venv)
 # ============================================================================
-echo "[3/4] Creating pmapper wrapper..."
-sudo tee /usr/local/bin/pmapper > /dev/null << 'EOF'
+echo "[2/3] Installing pmapper..."
+if [ ! -d "$TOOLS_DIR/venvs/pmapper" ]; then
+    echo "  Creating Python virtual environment..."
+    python3 -m venv "$TOOLS_DIR/venvs/pmapper"
+    
+    echo "  Installing pmapper..."
+    source "$TOOLS_DIR/venvs/pmapper/bin/activate"
+    pip install -q --upgrade pip
+    pip install -q principalmapper
+    deactivate
+    
+    # Create wrapper script
+    cat > "$TOOLS_DIR/bin/pmapper" << 'EOF'
 #!/bin/bash
-# Wrapper to run pmapper from ubuntu's venv (credentials from /home/ubuntu/.aws)
-sudo -u ubuntu /home/ubuntu/workspace/PMapper/venv/bin/pmapper "$@"
+source "$HOME/security-tools/venvs/pmapper/bin/activate"
+pmapper "$@"
+deactivate
 EOF
-sudo chmod +x /usr/local/bin/pmapper
-echo "  ✓ pmapper wrapper created"
-
+    chmod +x "$TOOLS_DIR/bin/pmapper"
+    echo "  ✓ pmapper installed"
+else
+    echo "  ✓ pmapper already installed"
+fi
 echo ""
 
 # ============================================================================
-# STEP 4: Setup awspx
+# 3. Create awspx wrapper
 # ============================================================================
-echo "[4/4] Setting up awspx..."
-# awspx already exists at /usr/local/bin/awspx and now root has credentials
-echo "  ✓ awspx available (credentials configured for root user)"
+echo "[3/3] Creating awspx wrapper..."
 
+# Create wrapper script that handles sudo and credentials
+cat > "$TOOLS_DIR/bin/awspx" << 'EOF'
+#!/bin/bash
+# Wrapper for awspx that handles sudo and credentials automatically
+
+# Export AWS credentials if they exist in files
+if [ -f ~/.aws/credentials ]; then
+    export AWS_ACCESS_KEY_ID=$(grep -A2 "\[default\]" ~/.aws/credentials 2>/dev/null | grep aws_access_key_id | cut -d'=' -f2 | tr -d ' ')
+    export AWS_SECRET_ACCESS_KEY=$(grep -A2 "\[default\]" ~/.aws/credentials 2>/dev/null | grep aws_secret_access_key | cut -d'=' -f2 | tr -d ' ')
+    SESSION_TOKEN=$(grep -A3 "\[default\]" ~/.aws/credentials 2>/dev/null | grep aws_session_token | cut -d'=' -f2 | tr -d ' ')
+    if [ -n "$SESSION_TOKEN" ]; then
+        export AWS_SESSION_TOKEN="$SESSION_TOKEN"
+        export AWS_SECURITY_TOKEN="$SESSION_TOKEN"
+    fi
+fi
+
+# Call the system awspx with sudo -E (preserve environment)
+sudo -E /usr/local/bin/awspx "$@"
+EOF
+chmod +x "$TOOLS_DIR/bin/awspx"
+echo "  ✓ awspx wrapper created"
+echo ""
+
+# ============================================================================
+# Update shell configuration
+# ============================================================================
+echo "Adding tools to PATH..."
+if ! grep -q "security-tools/bin" ~/.bashrc 2>/dev/null; then
+    echo '' >> ~/.bashrc
+    echo '# Security tools' >> ~/.bashrc
+    echo 'export PATH="$HOME/security-tools/bin:$PATH"' >> ~/.bashrc
+    echo "  ✓ Added to ~/.bashrc"
+else
+    echo "  ✓ Already in ~/.bashrc"
+fi
+
+# Also add for current shell session
+export PATH="$HOME/security-tools/bin:$PATH"
 echo ""
 
 # ============================================================================
@@ -181,52 +124,29 @@ echo ""
 echo "=== Validating Installation ==="
 echo ""
 
-# Validate terraform
-echo "▸ Testing terraform..."
-if terraform --version 2>&1 | head -1; then
-    echo "  ✓ terraform is working"
-else
-    echo "  ✗ terraform failed"
+echo "▸ terraform:"
+terraform version 2>&1 | head -1
+echo ""
+
+echo "▸ pmapper:"
+pmapper --help 2>&1 | head -2
+echo ""
+
+echo "▸ awspx:"
+if awspx --help 2>&1 | head -2; then
+    echo "  ✓ awspx wrapper is working"
 fi
-
 echo ""
 
-# Validate pmapper
-echo "▸ Testing pmapper..."
-if pmapper --help 2>&1 | head -2; then
-    echo "  ✓ pmapper wrapper is working"
-else
-    echo "  ✗ pmapper failed"
-fi
-
+echo "=== Installation Complete! ==="
 echo ""
-
-# Validate awspx
-echo "▸ Testing awspx..."
-if sudo /usr/local/bin/awspx --help 2>&1 | head -2; then
-    echo "  ✓ awspx is working"
-    echo ""
-    echo "  Testing awspx AWS access..."
-    # Quick AWS auth check for awspx
-    if sudo aws sts get-caller-identity &>/dev/null; then
-        echo "  ✓ awspx can access AWS (running as root)"
-    else
-        echo "  ⚠ awspx help works but AWS access needs verification"
-    fi
-else
-    echo "  ✗ awspx failed"
-fi
-
+echo "✓ All tools ready to use:"
+echo "  • terraform"
+echo "  • pmapper"
+echo "  • awspx  (automatically handles sudo)"
 echo ""
-echo "=== Setup Complete! ==="
-echo ""
-echo "✓ All tools are ready to use with AWS credentials:"
-echo "  • terraform        - Infrastructure as code"
-echo "  • pmapper          - AWS IAM privilege escalation analyzer"
-echo "  • sudo awspx       - AWS attack path visualization"
-echo ""
-echo "AWS Identity: $AWS_ARN"
-echo "Account:      $AWS_ACCOUNT"
+echo "For new sessions, run: source ~/.bashrc"
+echo "Or just start a new shell session"
 echo ""
 
 # 5. apply lab terraform modules
