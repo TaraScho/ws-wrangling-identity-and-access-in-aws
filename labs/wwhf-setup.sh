@@ -7,13 +7,13 @@ set -e  # Exit on error
 echo "=== Security Tools Setup Script ==="
 echo "Setting up awspx, pmapper, and terraform for ssm-user..."
 
-# 1. Fix pmapper venv (install missing dependencies)
+# 1. Fix pmapper venv (FULL reinstall to ensure all dependencies)
 echo ""
 echo "[1/4] Fixing pmapper virtual environment..."
-# Run the check as ubuntu user since ssm-user can't access /home/ubuntu
 if sudo -u ubuntu test -d "/home/ubuntu/workspace/PMapper/venv"; then
-    sudo -u ubuntu bash -c "cd /home/ubuntu/workspace/PMapper && source venv/bin/activate && pip install -q -r requirements.txt"
-    echo "✓ pmapper dependencies installed"
+    echo "  Reinstalling pmapper with all dependencies..."
+    sudo -u ubuntu bash -c "cd /home/ubuntu/workspace/PMapper && source venv/bin/activate && pip install -q --upgrade pip && pip install -q -e ."
+    echo "✓ pmapper fully installed"
 else
     echo "✗ pmapper venv not found at expected location"
     exit 1
@@ -32,7 +32,7 @@ if ! command -v terraform &> /dev/null; then
     rm -f terraform_${TERRAFORM_VERSION}_linux_amd64.zip
     echo "✓ terraform ${TERRAFORM_VERSION} installed"
 else
-    echo "✓ terraform already installed ($(terraform version -json 2>/dev/null | grep -o '"version":"[^"]*' | cut -d'"' -f4 || echo 'version check failed'))"
+    echo "✓ terraform already installed"
 fi
 
 # 3. Create pmapper wrapper script
@@ -58,13 +58,17 @@ else
     echo "✓ awspx alias already exists"
 fi
 
+# Reload bashrc in current shell
+alias awspx='sudo /usr/local/bin/awspx'
+
 echo ""
 echo "=== Setup Complete! ==="
 echo ""
 echo "Available commands:"
 echo "  • terraform --version"
 echo "  • pmapper --help"
-echo "  • awspx --help  (or run: source ~/.bashrc to activate alias)"
+echo "  • awspx --help"
 echo ""
-echo "To use awspx immediately, run: source ~/.bashrc"
+echo "Note: If 'awspx' alias doesn't work, run: . ~/.bashrc"
+echo "      (or just use 'sudo /usr/local/bin/awspx' directly)"
 echo ""
