@@ -1,7 +1,7 @@
 # Wrangling Identity and Access in AWS
 
 > [!NOTE]
-> 🚧 Workshop is currently in development - some material (e.g. pathfinding.cloud fork and slides/ content) is only commited to project as reference for agentic assisted development. Final learning facing material will be organized/presented differently.
+> 🚧 Workshop is currently in development - some material (e.g. pathfinding.cloud fork) is only commited to project as reference for agentic assisted development. Final learning facing material will be organized/presented differently.
 
 In this 2-hour hands-on workshop learners will navigate the world of identity and access management in AWS. Students should bring their own sandbox AWS account as we navigate policy grammar and becoming familiar with the PARC model (principal, action, resource, and condition), resource policies, permissions boundaries, and introduce guardrails like condition keys. Learners will be hands-on in AWS and leveraging open source tools to simulate various identity misconfigurations.
 
@@ -30,7 +30,7 @@ We will be using the following open source tools and references:
 ### Module 1: Layin' Down the Law - 60 minutes
 
 **Lecture 1 - Layin' Down the Law: The Sheriff's Handbook - 20 minutes**
-- [Slides](slides/lecture-1-layin-down-the-law/slides.md)
+- [Slides](https://docs.google.com/presentation/d/15IF92MF-tpn5OzeFu3IypIMvFDcgvSF2/edit?usp=sharing&ouid=109780715844951499863&rtpof=true&sd=true)
 - IAM fundamentals, PARC model, policy evaluation
 - 5 privilege escalation categories
 
@@ -43,7 +43,7 @@ We will be using the following open source tools and references:
 ### Module 2: Fencin' the Frontier - 60 minutes
 
 **Lecture 2 - Fencin' the Frontier: Guardrails and What Goes Wrong - 15 minutes**
-- [Slides](slides/lecture-2-fencin-the-frontier/slides.md)
+- [Slides](https://docs.google.com/presentation/d/1r08sa_l1YvCGMGzZG_ptN2Za6kc8aWnn/edit?usp=sharing&ouid=109780715844951499863&rtpof=true&sd=true)
 - Permissions boundaries, resource policies, condition keys, SCPs
 
 **Lab 2 - Fencin' the Frontier: Exploit and Remediate - 45 minutes**

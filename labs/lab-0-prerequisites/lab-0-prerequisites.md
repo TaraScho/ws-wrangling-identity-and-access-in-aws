@@ -117,3 +117,7 @@ Apply complete! Resources: 87 added, 0 changed, 0 destroyed.
 ## Validation and lab deployment complete
 
 When you have successfully installed the tools and deployed the lab infrastructure you are ready to proceed to **Lab 1 - Layin' Down the Law**.
+
+
+git clone https://github.com/TaraScho/ws-wrangling-identity-and-access-in-aws.git
+cd ws-wrangling-identity-and-access-in-aws

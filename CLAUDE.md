@@ -8,22 +8,26 @@ This is a 2-hour hands-on AWS IAM security workshop teaching identity and access
 
 **Workshop Structure:**
 1. Layin' Down the Law (Lecture 1): IAM fundamentals (PARC model, policy evaluation, 5 privilege escalation categories)
-2. Layin' Down the Law (Lab 1): Identify misconfigurations using pmapper and pathfinding.cloud
+2. Layin' Down the Law (Lab 1): Identify and exploit misconfigurations using awspx, pmapper, and pathfinding.cloud
 3. Fencin' the Frontier (Lecture 2): Security guardrails (permissions boundaries, trust policies, condition keys, SCPs)
-4. Fencin' the Frontier (Lab 2): Exploit and remediate using attack→defense pairs
+4. Fencin' the Frontier (Lab 2): Remediate and verify using guardrails (permissions boundaries, resource constraints, trust policies, condition keys)
 
 ## Architecture
 
 ### Workshop Content
-- `slides/` - Slide presentations in Markdown format - in development and will most likely be Google Slides in the final version
-- `labs/` - Hands-on exercise instructions and Terraform infrastructure
-  - `labs/terraform/` - Learner-facing Terraform modules to deploy vulnerable IAM infrastructure
-  - `labs/lab-1-layin-down-the-law/` - Layin' Down the Law lab instructions (identify misconfigurations)
-  - `labs/lab-2-fencin-the-frontier/` - Fencin' the Frontier lab instructions (exploit and remediate)
+- `labs/` - Hands-on exercise instructions and infrastructure
+  - `labs/lab-0-prerequisites/` - Prerequisites and setup instructions (tool validation, Terraform deployment)
+  - `labs/lab-1-layin-down-the-law/` - Lab 1: Identifying and exploiting IAM misconfigurations
+  - `labs/lab-2-fencin-the-frontier/` - Lab 2: Remediating IAM misconfigurations with guardrails
+  - `labs/bonus-scenarios/` - Additional scenarios beyond the core workshop
+  - `labs/FEATURES.md` - Feature roadmap tracking lab development tasks
+  - `labs/wwhf-setup.sh` - Workshop setup script
+  - `labs/terraform/` - Learner-facing Terraform to deploy vulnerable IAM infrastructure
+    - Modules: `cloudformation`, `ec2`, `iam-principals`, `lambda`
 
-### Reference Repositories
-- `reference-repos/iam-vulnerable/` - Full fork of Bishop Fox's iam-vulnerable repo for reference (learners deploy from `labs/terraform/` instead)
-- `reference-repos/pathfinding.cloud/` - Fork of pathfinding.cloud AWS IAM privilege escalation path database with interactive visualizations. This fork is for Claude reference only and learners in the workshop will use the actual pathfinding.cloud website. We are not making changes to the pathfinding.cloud code base.
+### Reference Repositories (gitignored, local only)
+- `reference-repos/PMapper/` - Fork of NCC Group's PMapper (Principal Mapper) for IAM privilege escalation analysis
+- `reference-repos/pathfinding.cloud/` - Fork of pathfinding.cloud AWS IAM privilege escalation path database. This fork is for Claude reference only; learners use the actual pathfinding.cloud website. We are not making changes to the pathfinding.cloud codebase.
 
 ## Key Requirements
 
