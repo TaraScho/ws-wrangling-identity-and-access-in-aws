@@ -198,8 +198,8 @@ echo "  • awspx  (requires sudo)"
 echo ""
 
 # 5. apply lab terraform modules
-cd /home/ssm-user/ws-wrangling-identity-and-access-in-aws/labs/terraform
-echo "[5/5] Applying lab terraform modules..."
-terraform init
-terraform apply --auto-approve
-echo "✓ lab terraform modules applied"
+# cd /home/ssm-user/ws-wrangling-identity-and-access-in-aws/labs/terraform
+# echo "[5/5] Applying lab terraform modules..."
+# terraform init
+# terraform apply --auto-approve
+# echo "✓ lab terraform modules applied"
