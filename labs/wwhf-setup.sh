@@ -46,29 +46,60 @@ EOF
 sudo chmod +x /usr/local/bin/pmapper
 echo "✓ pmapper wrapper created"
 
-# 4. Add awspx alias to bashrc if not present
+# 4. Create awspx wrapper script (no alias needed!)
 echo ""
-echo "[4/4] Setting up awspx alias..."
-if ! grep -q "alias awspx=" ~/.bashrc 2>/dev/null; then
-    echo "" >> ~/.bashrc
-    echo "# Security tools aliases" >> ~/.bashrc
-    echo "alias awspx='sudo /usr/local/bin/awspx'" >> ~/.bashrc
-    echo "✓ awspx alias added to ~/.bashrc"
+echo "[4/4] Creating awspx wrapper..."
+sudo tee /usr/local/bin/awspx-cli > /dev/null << 'EOF'
+#!/bin/bash
+# Wrapper to run awspx with sudo automatically
+sudo /usr/local/bin/awspx "$@"
+EOF
+sudo chmod +x /usr/local/bin/awspx-cli
+
+# Create a symlink so 'awspx' command works without sudo prompt
+sudo ln -sf /usr/local/bin/awspx-cli /usr/local/bin/awspx-user
+echo "✓ awspx wrapper created"
+
+# Add to PATH for current session (works in both sh and bash)
+export PATH="/usr/local/bin:$PATH"
+
+echo ""
+echo "=== Validating Installation ==="
+echo ""
+
+# Validate terraform
+echo "▸ Testing terraform..."
+if terraform --version 2>&1 | head -1; then
+    echo "  ✓ terraform is working"
 else
-    echo "✓ awspx alias already exists"
+    echo "  ✗ terraform failed"
 fi
 
-# Reload bashrc in current shell
-alias awspx='sudo /usr/local/bin/awspx'
+echo ""
+
+# Validate pmapper
+echo "▸ Testing pmapper..."
+if pmapper --help 2>&1 | head -2; then
+    echo "  ✓ pmapper is working"
+else
+    echo "  ✗ pmapper failed"
+fi
+
+echo ""
+
+# Validate awspx
+echo "▸ Testing awspx..."
+if sudo /usr/local/bin/awspx --help 2>&1 | head -2; then
+    echo "  ✓ awspx is working"
+else
+    echo "  ✗ awspx failed"
+fi
 
 echo ""
 echo "=== Setup Complete! ==="
 echo ""
-echo "Available commands:"
-echo "  • terraform --version"
-echo "  • pmapper --help"
-echo "  • awspx --help"
-echo ""
-echo "Note: If 'awspx' alias doesn't work, run: . ~/.bashrc"
-echo "      (or just use 'sudo /usr/local/bin/awspx' directly)"
+echo "✓ All tools are ready to use:"
+echo "  • terraform"
+echo "  • pmapper"
+echo "  • sudo awspx  (requires sudo)"
 echo ""
