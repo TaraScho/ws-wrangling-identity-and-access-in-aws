@@ -156,48 +156,116 @@ awspx provides a visual way to explore IAM relationships. Where pmapper gives yo
 
    You'll see an empty canvas with a **search bar** at the bottom and a **toolbar** on the right side.
 
-3. **Add a resource to the graph:** Click the search bar and type `iamws-group-admin-user`. Select it from the dropdown. A single **user node** (red person icon) appears on the canvas.
+3. **Ask the key question:** pmapper already told you that `iamws-group-admin-user` can escalate to admin. Now let's use awspx to **see how**. The question we're asking is: *"Can this user reach full admin access — and if so, through what path?"*
 
-   > [!TIP]
-   > The search bar acts as a resource picker. Type any part of a resource name and awspx shows matching users, roles, groups, and policies from the ingested data. Selecting a resource adds it as a node on the graph.
+   awspx answers this through **Advanced Search**, which finds paths between any two resources in the graph.
 
-4. **Find the attack path using Advanced Search:**
+   a. Click the **filter icon** (the sliders icon to the right of the search bar) to open the **Advanced Search** panel. You'll see **From** and **To** fields, a **Mode** section, and a query editor at the bottom.
 
-   Now let's ask awspx: *"Can this user reach admin?"*
+   b. Click into the **From** field and type `iamws-group-admin-user`. A dropdown appears — you'll see several similarly-named resources (`iamws-group-admin-policy`, `iamws-group-admin-role`, `iamws-group-admin-user`). Make sure you select the **user** — the one ending in `-user`.
 
-   a. Click the **filter icon** (⚙) to the right of the search bar to open **Advanced Search**.
+      > [!TIP]
+      > awspx stores users, roles, groups, and policies as separate resources. Many share a name prefix, so always check the resource type (shown by the icon and the ARN path like `/user/` vs `/role/`).
 
-   b. In the **From** field, type `iamws-group-admin-user` and select it from the dropdown.
+   c. Click into the **To** field and type `Effective Admin`. Select it from the dropdown.
 
-   c. In the **To** field, type `Effective Admin` and select it. "Effective Admin" is a special awspx node that represents full administrative access (`Action: *, Resource: *`).
+      **What is "Effective Admin"?** This is a pseudo-node that awspx creates automatically during data ingestion. It represents the goal of a privilege escalation attack: full administrative access (`Action: *, Resource: *`). It's not a real IAM entity — it's awspx's way of giving you a target to search toward.
 
-   d. Notice the generated query at the bottom of the panel:
+   d. Look at the query editor at the bottom of the panel. awspx auto-generated a [Cypher](https://neo4j.com/docs/cypher-manual/current/introduction/) query:
       ```
       MATCH Paths=ShortestPath((Source)-[:TRANSITIVE|ATTACK*0..]->(Target))
-      WHERE ID(Source) IN [...]
-      AND ID(Target) IN [...]
+      WHERE ID(Source) IN [<your node ID>]
+      AND ID(Target) IN [<your node ID>]
       RETURN Paths LIMIT 500
       ```
-      This is a [Cypher](https://neo4j.com/docs/cypher-manual/current/introduction/) query that finds the shortest path between the two resources, following transitive permissions and attack edges.
 
-   e. Click the **Run** button (▶) in the bottom-right corner.
+      You don't need to understand Cypher syntax to use awspx, but the key part is `TRANSITIVE|ATTACK` — this tells awspx to follow both **transitive edges** (IAM relationships like "user is member of group" or "policy is attached to role") *and* **attack edges** (computed privilege escalation paths) when searching for a route between the two nodes.
 
-5. **Interpret the result:**
+   e. Click the **Run** button (▶) at the bottom-right of the Advanced Search panel.
 
-   The graph now shows two nodes connected by a **dashed arrow**:
+4. **See the attack path:**
 
-   - **`iamws-group-admin-user`** (red person icon) — the attacker
-   - **`Effective Admin`** (crown icon) — full admin access
-   - A **dashed line labeled `PutGroupPolicy`** connecting them — the attack path
+   The result renders behind the Advanced Search panel. Click anywhere on the canvas background to dismiss the panel and reveal the graph.
 
-   **What this tells you:** awspx discovered that `iamws-group-admin-user` can reach administrative access through the `PutGroupPolicy` action. The dashed line represents an *attack edge*—meaning this isn't a direct permission, but an exploitable path that an attacker could follow to escalate privileges.
+   You should now see two nodes connected by a **maroon dashed edge**:
+
+   - **`iamws-group-admin-user`** (red person icon) — the source principal (IAM user)
+   - **`Effective Admin`** (crown icon) — the target representing full administrative access
+   - A **maroon dashed line** connecting them — an **attack edge**
+
+   awspx displays three types of edges in its graph. You're looking at one now — understanding all three will help you read the graphs throughout this lab:
+
+   - **Transitive edges** (solid lines) — IAM relationships that connect resources: group membership, policy attachment, role trust. These are the "plumbing" of IAM.
+   - **Action edges** (labeled gradient-colored lines) — Individual resolved IAM permissions, like `s3:GetObject` or `iam:PutGroupPolicy`. These show what a principal is allowed to *do*.
+   - **Attack edges** (maroon dashed lines) — Computed privilege escalation paths. awspx analyzes the transitive edges and action edges together and determines that a principal can chain permissions to escalate privileges. The attack edge you see now means awspx has found a viable escalation path from this user to full admin.
+
+5. **Explore the node — click `iamws-group-admin-user`:**
+
+   Before we look at the attack itself, let's orient ourselves with the tool. Click on the **`iamws-group-admin-user`** node. A properties panel opens at the top of the screen with several tabs. Click through each one:
+
+   - **AWS::Iam::User** — Basic identity info: the user's name, ARN, creation date, and IAM ID.
+   - **AccessKeys** — Any access keys associated with this user.
+   - **GroupList** — The IAM groups this user belongs to. You should see **`iamws-dev-team`** listed here. 
+   - **Notes** — An working area for you to add any notes you want to keep about this principal
+
+   Now click anywhere on the canvas background to dismiss the panel.
+
+6. **Explore IAM relationships — right-click the node:**
+
+   Right-click on the **`iamws-group-admin-user`** node. A context menu appears with four buttons around the node. Hover over each button to see what it is.
+
+   - **Outbound Paths** — transitive and attack edges going *from* this node
+   - **Outbound Actions** — specific IAM permissions this principal has
+   - **Inbound Paths** — transitive and attack edges coming *to* this node
+   - **Inbound Actions** — specific IAM permissions targeting this principal
+
+   Click **Outbound Paths**. The graph expands to show the resources connected to this user:
+
+   - **`iamws-group-admin-policy`** (policy icon) — connected by a solid **transitive edge** labeled "Attached". This is the IAM policy attached to the user that grants the `iam:PutGroupPolicy` permission.
+   - **`iamws-dev-team`** (group icon) — connected by a solid **transitive edge** labeled "Attached". This is the IAM group the user belongs to — and the target the attacker will write an admin policy on.
+   - **`Effective Admin`** (crown icon) — connected by the maroon dashed **attack edge** labeled "PutGroupPolicy".
+
+   Now you can see the complete story: the user has a policy granting `PutGroupPolicy`, they belong to `iamws-dev-team`, and awspx has determined they can exploit that combination to reach admin. The transitive edges show *how IAM resources are connected*, and the attack edge shows *what an attacker can do with those connections*.
+
+   Click anywhere on the canvas to dismiss any open panels before continuing.
+
+7. **Discover the exploit — click the attack edge:**
+
+   Click directly on the **maroon dashed line** (the attack edge) between the two nodes. A panel opens at the top-left with two tabs: **Attack Path** and **Notes**.
+
+   The **Attack Path** tab shows you the exact exploitation command:
+   ```bash
+   aws iam put-group-policy \
+     --group-name iamws-dev-team \
+     --policy-name Admin \
+     --policy-document file://<(cat <<EOF
+   {
+       "Version": "2012-10-17",
+       "Statement": [
+           {
+               "Sid": "Admin",
+               "Effect": "Allow",
+               "Action": "*",
+               "Resource": "*"
+           }]
+   }
+   EOF
+   )
+   ```
+
+   **Read this carefully.** awspx is telling you that `iamws-group-admin-user` can call `iam:PutGroupPolicy` to write an inline admin policy on the group `iamws-dev-team`. Since this user is a *member* of that group, the new policy immediately grants them full admin access.
+
+   This is the entire attack plan — laid out by a tool, from a single graph query. You'll execute this exact attack in Exercise 7.
 
    > [!NOTE]
-   > You'll exploit this exact path later in Exercise 7. For now, the key takeaway is that awspx can visually map out privilege escalation paths that would be difficult to spot by reading JSON policies alone.
+   > awspx doesn't just show you that a path *exists* — it shows you exactly *how to exploit it*. This is what makes graph-based tools so powerful compared to reading JSON policies by hand: the tool connects the dots that a human reviewer would likely miss.
 
-6. **Explore on your own:** Click the **back arrow** (←) at the bottom-left to return to the search bar. Try running the same Advanced Search for other `iamws-` users (like `iamws-ci-runner-user` or `iamws-role-assumer-user`) to see their paths to `Effective Admin`. Each user reaches admin through a *different* attack path—this is the variety of vulnerabilities you'll exploit in the upcoming exercises.
+8. **Explore on your own:** Close the Attack Path panel by clicking on the canvas, then click the **Clear the screen** button (monitor icon) in the right toolbar to clear the graph. Open Advanced Search again and try querying other `iamws-` users (like `iamws-ci-runner-user` or `iamws-role-assumer-user`) in the **From** field with `Effective Admin` in the **To** field. Each user reaches admin through a *different* attack edge — click the maroon dashed line on each to see the different exploitation techniques. This is the variety of vulnerabilities you'll exploit in the upcoming exercises.
 
-You now have two powerful tools ready to explore IAM vulnerabilities. pmapper gives you scriptable text output for querying specific permissions, while awspx gives you a visual graph for discovering and understanding attack paths.
+   > [!TIP]
+   > The main search bar at the bottom also lets you add individual resources to the canvas by name — useful for exploring how a specific user, role, or policy connects to the rest of the graph. Try adding a few `iamws-` resources to see their icons and labels.
+
+You now have two powerful tools for IAM reconnaissance. pmapper gives you scriptable text output for querying specific permissions. awspx gives you a visual graph that reveals not just *whether* a privilege escalation exists, but the *exact exploit path* to carry it out.
 
 ---
 

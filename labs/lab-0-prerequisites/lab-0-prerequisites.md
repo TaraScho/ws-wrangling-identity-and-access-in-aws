@@ -118,6 +118,8 @@ Apply complete! Resources: 87 added, 0 changed, 0 destroyed.
 
 When you have successfully installed the tools and deployed the lab infrastructure you are ready to proceed to **Lab 1 - Layin' Down the Law**.
 
-
+cd ~
 git clone https://github.com/TaraScho/ws-wrangling-identity-and-access-in-aws.git
-cd ws-wrangling-identity-and-access-in-aws
+cd ws-wrangling-identity-and-access-in-aws/labs
+chmod +x wwhf-setup.sh
+./wwhf-setup.sh

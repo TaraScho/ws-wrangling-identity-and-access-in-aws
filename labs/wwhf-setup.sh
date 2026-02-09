@@ -33,7 +33,7 @@ echo ""
 echo "[1/3] Installing terraform..."
 if [ ! -f "$TOOLS_DIR/bin/terraform" ]; then
     cd /tmp
-    TERRAFORM_VERSION="1.7.4"
+    TERRAFORM_VERSION="1.14.4"
     wget -q "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
     unzip -q terraform_${TERRAFORM_VERSION}_linux_amd64.zip
     mv terraform "$TOOLS_DIR/bin/"
