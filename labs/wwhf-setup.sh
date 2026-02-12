@@ -134,7 +134,7 @@ else
 
   echo "  Installing pmapper into venv..."
   "$TOOLS_DIR/venvs/pmapper/bin/pip" install -q --upgrade pip
-  "$TOOLS_DIR/venvs/pmapper/bin/pip" install -q principalmapper \
+  "$TOOLS_DIR/venvs/pmapper/bin/pip" install -q principalmapper rich \
     || fail "Failed to install principalmapper via pip."
 
   # Patch Python 3.10+ compatibility (upstream fix PR #139 never merged)
@@ -210,7 +210,7 @@ sudo docker run -itd \
   --name awspx \
   --hostname=awspx \
   --env NEO4J_AUTH=neo4j/password \
-  -p 127.0.0.1:10080:80 \
+  -p 127.0.0.1:10000:80 \
   -p 127.0.0.1:7687:7687 \
   -p 127.0.0.1:7373:7373 \
   -p 127.0.0.1:7474:7474 \
@@ -363,8 +363,17 @@ else
   aws configure set aws_secret_access_key "$SK" --profile default
   aws configure set region "$REGION" --profile default
 
-  aws sts get-caller-identity --profile default &>/dev/null \
-    || fail "Default profile created but authentication failed."
+  # New IAM access keys can take a few seconds to propagate (eventual consistency)
+  echo "  Waiting for access key to become active..."
+  for i in 1 2 3 4 5; do
+    if aws sts get-caller-identity --profile default &>/dev/null; then
+      break
+    fi
+    if [ "$i" -eq 5 ]; then
+      fail "Default profile created but authentication failed after 25s. The access key may need more time to propagate — try: aws sts get-caller-identity --profile default"
+    fi
+    sleep 5
+  done
   echo "  ✓ Persistent default profile configured ($DEFAULT_USER)"
   echo "    If you lose your session, your CLI will automatically use this profile."
 fi
@@ -407,6 +416,11 @@ if [ "$PASS" -eq "$TOTAL" ]; then
   echo "=== Setup Complete! ($PASS/$TOTAL checks passed) ==="
   echo ""
   echo "You're ready to start Lab 1. Happy hacking!"
+  echo ""
+  echo "  Run this command to activate the tools in your current session:"
+  echo ""
+  echo "    source ~/.bashrc"
+  echo ""
 else
   echo "=== Setup finished with issues ($PASS/$TOTAL checks passed) ==="
   echo ""

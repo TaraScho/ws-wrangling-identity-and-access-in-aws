@@ -75,6 +75,12 @@ When the script finishes, you should see:
 
 You're ready to start Lab 1. Happy hacking!
 ```
+
+> **Important:** The setup script added tools to your PATH, but your current terminal session needs to reload it:
+> ```bash
+> source ~/.bashrc
+> ```
+
 ---
 
 ## Privilege Escalation Categories
@@ -192,7 +198,9 @@ pmapper analysis --output-type text
 
 ### Part C: Load Data into awspx
 
-awspx also provides a visual way to explore IAM relationships. awspx renders an **interactive graph** so you can visually trace how users, roles, groups, and policies connect—and where attack paths exist. It's already running at [http://localhost](http://localhost).
+awspx also provides a visual way to explore IAM relationships. awspx renders an **interactive graph** so you can visually trace how users, roles, groups, and policies connect—and where attack paths exist. It's already running at [http://localhost:10000](http://localhost:10000).
+
+> **Note:** The workshop setup script maps awspx to port 10000. If you installed awspx on your own machine outside of this workshop, it runs on port 80 by default.
 
 1. **Ingest AWS IAM data:**
    ```bash
@@ -201,7 +209,7 @@ awspx also provides a visual way to explore IAM relationships. awspx renders an 
 
    Similar to pmapper, this command pulls IAM data into awspx's graph database (Neo4j).
 
-1. **Open awspx** in your browser at [http://localhost](http://localhost)
+1. **Open awspx** in your browser at [http://localhost:10000](http://localhost:10000)
 
    You'll see an empty canvas with a **search bar** at the bottom and a **toolbar** on the right side.
 
@@ -742,15 +750,12 @@ aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
 
 **Expected:** `AccessDenied` — this CI runner can't reach the crown jewels... yet.
 
-**Step 2: Find privileged instance profiles**
-```bash
-aws iam list-instance-profiles \
-  --query 'InstanceProfiles[].{Name:InstanceProfileName,Roles:Roles[].RoleName}' \
-  --output table \
-  --profile iamws-ci-runner-user
-```
+**Step 2: Identify the target instance profile**
 
-You'll see `iamws-prod-deploy-profile` with role `iamws-prod-deploy-role` (which has `*:*` permissions). This is our target.
+From the pmapper analysis in Part A, you already know that `iamws-ci-runner-user` can reach the admin role `iamws-prod-deploy-role` via EC2. In AWS, instance profiles share the same name as their role by convention — and in this lab the instance profile is named `iamws-prod-deploy-profile`. This is the profile we'll attach to our EC2 instance.
+
+> [!NOTE]
+> In a real attack, the attacker would enumerate instance profiles using `aws iam list-instance-profiles`. The CI runner doesn't have that IAM read permission, but they don't need it — `ec2:RunInstances` with `iam:PassRole` is enough to attach any role's instance profile at launch time, even without knowing the full list upfront. An attacker who already identified the target role (via recon tools like pmapper) just needs to guess or know the instance profile name.
 
 **Step 3: Find a suitable AMI and subnet**
 
