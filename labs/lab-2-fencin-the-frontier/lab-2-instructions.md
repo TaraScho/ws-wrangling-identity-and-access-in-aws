@@ -176,6 +176,15 @@ with an explicit deny in a permissions boundary
 
 **The attack is blocked!** The boundary explicitly denies `iam:CreatePolicyVersion`.
 
+**Verify the crown jewels are still protected:**
+
+```bash
+aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
+  --profile iamws-policy-developer-user
+```
+
+**Expected:** `AccessDenied` — the remediation blocked the escalation path, so the crown jewels remain safe.
+
 ### What You Learned
 
 - Permissions boundaries cap effective permissions regardless of identity policies
@@ -286,6 +295,15 @@ arn:aws:iam::ACCOUNT_ID:role/iamws-privileged-admin-role
 ```
 
 **The attack is blocked!** The hardened trust policy doesn't trust the attacker.
+
+**Verify the crown jewels are still protected:**
+
+```bash
+aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
+  --profile iamws-role-assumer-user
+```
+
+**Expected:** `AccessDenied` — the role assumer can't assume the admin role anymore, so the crown jewels remain safe.
 
 ### What You Learned
 
@@ -436,6 +454,15 @@ aws iam simulate-principal-policy \
 - First query: `"allowed"` (can pass their own role to Lambda — the legitimate use case)
 - Second query: `"implicitDeny"` (cannot pass any role to EC2 — the attack path is blocked)
 
+**Verify the crown jewels are still protected:**
+
+```bash
+aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
+  --profile iamws-ci-runner-user
+```
+
+**Expected:** `AccessDenied` — the CI runner can no longer pass a privileged role to EC2, so the crown jewels remain safe.
+
 ### What You Learned
 
 - `iam:PassedToService` is **essential** for any PassRole permission
@@ -556,6 +583,18 @@ arn:aws:lambda:us-east-1:ACCOUNT_ID:function:iamws-privileged-lambda
 ```
 
 **The attack is blocked!** The developer can only update `dev-*` functions.
+
+**Verify the crown jewels are still protected:**
+
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text \
+  --profile iamws-lambda-developer-user)
+
+aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
+  --profile iamws-lambda-developer-user
+```
+
+**Expected:** `AccessDenied` — the Lambda developer can no longer hijack privileged functions, so the crown jewels remain safe.
 
 ### What You Learned
 
@@ -822,6 +861,18 @@ aws iam delete-group-policy \
 - `iamws-platform-team`: Success — they can still manage the group they're authorized for
 
 **The attack is blocked!** The resource constraint prevents the self-escalation path.
+
+**Verify the crown jewels are still protected:**
+
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text \
+  --profile iamws-group-admin-user)
+
+aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
+  --profile iamws-group-admin-user
+```
+
+**Expected:** `AccessDenied` — the group admin can no longer escalate via their own group, so the crown jewels remain safe.
 
 ### What You Learned
 

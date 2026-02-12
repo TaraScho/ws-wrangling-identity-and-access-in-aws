@@ -45,3 +45,8 @@ module "lambda" {
   source              = "./modules/lambda"
   aws_assume_role_arn = (var.aws_assume_role_arn != "" ? var.aws_assume_role_arn : data.aws_caller_identity.current.arn)
 }
+
+module "s3" {
+  source         = "./modules/s3"
+  aws_account_id = data.aws_caller_identity.current.account_id
+}

@@ -24,8 +24,8 @@ resource "aws_iam_policy" "iamws-webhook-handler-policy" {
 }
 
 resource "aws_iam_role" "iamws-webhook-handler-role" {
-  name                = "iamws-webhook-handler-role"
-  assume_role_policy  = jsonencode({
+  name = "iamws-webhook-handler-role"
+  assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {

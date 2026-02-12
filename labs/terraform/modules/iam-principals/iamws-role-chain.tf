@@ -13,7 +13,7 @@ resource "aws_iam_policy" "iamws-role-chain-high-priv-policy" {
     Statement = [
       {
         Effect   = "Allow"
-        Action = "*"
+        Action   = "*"
         Resource = "*"
       },
     ]
@@ -21,8 +21,8 @@ resource "aws_iam_policy" "iamws-role-chain-high-priv-policy" {
 }
 
 resource "aws_iam_role" "iamws-role-chain-start-role" {
-  name                = "iamws-role-chain-start-role"
-  assume_role_policy  = jsonencode({
+  name = "iamws-role-chain-start-role"
+  assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
@@ -38,8 +38,8 @@ resource "aws_iam_role" "iamws-role-chain-start-role" {
 }
 
 resource "aws_iam_role" "iamws-role-chain-middle-role" {
-  name                = "iamws-role-chain-middle-role"
-  assume_role_policy  = jsonencode({
+  name = "iamws-role-chain-middle-role"
+  assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
@@ -55,8 +55,8 @@ resource "aws_iam_role" "iamws-role-chain-middle-role" {
 }
 
 resource "aws_iam_role" "iamws-role-chain-end-role" {
-  name                = "iamws-role-chain-end-role"
-  assume_role_policy  = jsonencode({
+  name = "iamws-role-chain-end-role"
+  assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {

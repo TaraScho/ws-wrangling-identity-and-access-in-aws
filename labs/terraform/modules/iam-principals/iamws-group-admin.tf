@@ -27,8 +27,6 @@ resource "aws_iam_group_policy" "iamws-dev-team-readonly" {
         Sid    = "AllowReadOnly"
         Effect = "Allow"
         Action = [
-          "s3:GetObject",
-          "s3:ListBucket",
           "ec2:DescribeInstances",
           "ec2:DescribeSecurityGroups"
         ]
@@ -103,9 +101,9 @@ resource "aws_iam_policy" "iamws-group-admin-policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "AllowPutGroupPolicy"
-        Effect = "Allow"
-        Action = "iam:PutGroupPolicy"
+        Sid      = "AllowPutGroupPolicy"
+        Effect   = "Allow"
+        Action   = "iam:PutGroupPolicy"
         Resource = "*"
         # ═══════════════════════════════════════════════════════════════════
         # ROOT CAUSE: Resource: "*" means this user can write inline

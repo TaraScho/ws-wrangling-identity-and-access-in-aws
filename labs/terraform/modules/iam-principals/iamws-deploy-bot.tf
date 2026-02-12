@@ -11,7 +11,7 @@ resource "aws_iam_policy" "iamws-deploy-bot-policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Action = "iam:AttachRolePolicy"
+        Action   = "iam:AttachRolePolicy"
         Effect   = "Allow"
         Resource = "*"
       },
@@ -20,8 +20,8 @@ resource "aws_iam_policy" "iamws-deploy-bot-policy" {
 }
 
 resource "aws_iam_role" "iamws-deploy-bot-role" {
-  name                = "iamws-deploy-bot-role"
-  assume_role_policy  = jsonencode({
+  name = "iamws-deploy-bot-role"
+  assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {

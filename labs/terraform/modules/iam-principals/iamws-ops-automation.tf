@@ -11,7 +11,7 @@ resource "aws_iam_policy" "iamws-ops-automation-policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow"
+        Effect = "Allow"
         Action = [
           "ec2:DescribeInstances",
           "ssm:ListCommands",
@@ -25,8 +25,8 @@ resource "aws_iam_policy" "iamws-ops-automation-policy" {
 }
 
 resource "aws_iam_role" "iamws-ops-automation-role" {
-  name                = "iamws-ops-automation-role"
-  assume_role_policy  = jsonencode({
+  name = "iamws-ops-automation-role"
+  assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {

@@ -14,7 +14,7 @@ resource "aws_iam_policy" "iamws-prod-deploy-policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Action = "*"
+        Action   = "*"
         Effect   = "Allow"
         Resource = "*"
       },
@@ -27,8 +27,8 @@ data "aws_iam_policy" "AmazonSSMManagedInstanceCore" {
 }
 
 resource "aws_iam_role" "iamws-prod-deploy-role" {
-  name                = "iamws-prod-deploy-role"
-  assume_role_policy  = jsonencode({
+  name = "iamws-prod-deploy-role"
+  assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
@@ -55,8 +55,8 @@ resource "aws_iam_role" "iamws-prod-deploy-role" {
 }
 
 resource "aws_iam_instance_profile" "iamws-prod-deploy-profile" {
- name = "iamws-prod-deploy-profile"
- role = aws_iam_role.iamws-prod-deploy-role.name
+  name = "iamws-prod-deploy-profile"
+  role = aws_iam_role.iamws-prod-deploy-role.name
 }
 
 resource "aws_iam_role_policy_attachment" "iamws-prod-deploy-role-attach-policy1" {

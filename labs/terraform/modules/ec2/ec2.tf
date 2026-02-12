@@ -14,11 +14,11 @@ resource "aws_security_group" "allow_ssh_from_world" {
   description = "Allow SSH inbound traffic from world"
 
   ingress {
-    description      = "SSH from world"
-    from_port        = 22
-    to_port          = 22
-    protocol         = "tcp"
-    cidr_blocks      = ["0.0.0.0/0"]
+    description = "SSH from world"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {

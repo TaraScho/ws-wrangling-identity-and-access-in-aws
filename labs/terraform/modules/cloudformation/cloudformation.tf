@@ -1,5 +1,5 @@
 resource "aws_cloudformation_stack" "iamws-demo-stack" {
-  name = "iamws-demo-stack"
+  name         = "iamws-demo-stack"
   iam_role_arn = var.shared_high_priv_servicerole
 
   template_body = <<STACK

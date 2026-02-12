@@ -16,9 +16,9 @@ resource "aws_iam_policy" "iamws-ci-runner-policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "AllowPassRole"
-        Effect = "Allow"
-        Action = "iam:PassRole"
+        Sid      = "AllowPassRole"
+        Effect   = "Allow"
+        Action   = "iam:PassRole"
         Resource = "*"
         # ═══════════════════════════════════════════════════════════════════
         # ROOT CAUSE: Missing condition block!

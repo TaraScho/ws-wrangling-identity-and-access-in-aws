@@ -20,8 +20,6 @@ resource "aws_iam_policy" "iamws-developer-tools-policy" {
         Sid    = "AllowDeveloperTools"
         Effect = "Allow"
         Action = [
-          "s3:GetObject",
-          "s3:ListBucket",
           "ec2:DescribeInstances"
         ]
         Resource = "*"
