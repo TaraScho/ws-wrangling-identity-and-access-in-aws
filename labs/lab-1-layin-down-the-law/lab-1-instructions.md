@@ -76,10 +76,13 @@ When the script finishes, you should see:
 You're ready to start Lab 1. Happy hacking!
 ```
 
-> **Important:** The setup script added tools to your PATH, but your current terminal session needs to reload it:
-> ```bash
-> source ~/.bashrc
-> ```
+## Step 4: 🚨 IMPORTANT
+
+The setup script added tools to your PATH, but your current terminal session needs to reload it:
+
+```bash
+source ~/.bashrc
+```
 
 ---
 

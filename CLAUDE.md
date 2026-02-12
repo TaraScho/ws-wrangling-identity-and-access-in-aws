@@ -21,19 +21,17 @@ This is a 2-hour hands-on AWS IAM security workshop teaching identity and access
     - `exercises/` - Individual exercise files (exercises 2–7), linked from `lab-1-instructions.md`
   - `labs/lab-2-fencin-the-frontier/` - Lab 2: Remediating IAM misconfigurations with guardrails
     - `exercises/` - Individual exercise files (exercises 1–6), linked from `lab-2-instructions.md`
-  - `labs/bonus-scenarios/` - Additional scenarios beyond the core workshop
-  - `labs/FEATURES.md` - Feature roadmap tracking lab development tasks
   - `labs/wwhf-setup.sh` - Workshop setup script
   - `labs/terraform/` - Learner-facing Terraform to deploy vulnerable IAM infrastructure
-    - Modules: `cloudformation`, `ec2`, `iam-principals`, `lambda`
+    - Modules: `cloudformation`, `ec2`, `iam-principals`, `lambda`, `s3`
 
 ### Reference Repositories (gitignored, local only)
 - `reference-repos/PMapper/` - Fork of NCC Group's PMapper (Principal Mapper) for IAM privilege escalation analysis
-- `reference-repos/pathfinding.cloud/` - Fork of pathfinding.cloud AWS IAM privilege escalation path database. This fork is for Claude reference only; learners use the actual pathfinding.cloud website. We are not making changes to the pathfinding.cloud codebase.
+- `reference-repos/pathfinding.cloud/` - Fork of pathfinding.cloud AWS IAM privilege escalation path database. This fork is for Claude reference only; learners use the actual pathfinding.cloud website.
 
 ## Key Requirements
 
-After each update, ensure all markdown files in the project are updated to reflect the changes and provide accurate information. This workshop is currently in development and all collaborators need to understand the purpose of each file and whether it is intended as a final learner facing document, a reference for instructions, or resources for agentic assisted development.
+After each update, ensure all markdown files in the project are updated to reflect the changes and provide accurate information.
 
 ## Markdown Style Guide
 
