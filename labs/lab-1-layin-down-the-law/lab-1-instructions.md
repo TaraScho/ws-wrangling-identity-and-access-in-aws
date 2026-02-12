@@ -16,7 +16,65 @@ In this lab, you'll use open source tools to discover and exploit privilege esca
 
 ## Environment Set Up
 
-TODO - add instructions for allocating AWS account, configuring credentials in web shell, cloning git repo, and running set up script.
+## Step 1: Configure AWS Credentials
+
+Paste the `export` commands provided by the workshop facilitator into your terminal session:
+
+```bash
+export AWS_ACCESS_KEY_ID=AKIA...
+export AWS_SECRET_ACCESS_KEY=...
+export AWS_SESSION_TOKEN=...
+```
+
+Verify the credentials are working:
+
+```bash
+aws sts get-caller-identity
+```
+
+Expected output looks similar to the following:
+
+```
+{
+    "UserId": "<Your user id>",
+    "Account": "<your account id>",
+    "Arn": "<your identity arn>"
+}
+```
+
+---
+
+## Step 2: Clone the Workshop Repository
+
+```bash
+git clone https://github.com/TaraScho/ws-wrangling-identity-and-access-in-aws.git ~/workshop
+cd ~/workshop
+```
+
+---
+
+## Step 3: Run the Setup Script
+
+```bash
+bash labs/wwhf-setup.sh
+```
+
+The script will:
+
+1. Verify prerequisites (Docker, Python 3, AWS credentials, etc.)
+1. Install Terraform and pmapper
+1. Create the awspx credential wrapper
+1. Add tools to your PATH
+1. Deploy the vulnerable lab infrastructure with Terraform
+1. Configure AWS CLI profiles for all 6 exercise users
+
+When the script finishes, you should see:
+
+```
+=== Setup Complete! (4/4 checks passed) ===
+
+You're ready to start Lab 1. Happy hacking!
+```
 ---
 
 ## Privilege Escalation Categories
@@ -246,7 +304,9 @@ awspx also provides a visual way to explore IAM relationships. awspx renders an 
 **The exercise pattern:** For each of the remaining exercises, you'll follow the same workflow: **(1)** visualize the attack path in awspx, **(2)** confirm the vulnerability with pmapper, **(3)** review the attack conceptually on pathfinding.cloud, and **(4)** exploit it. You've already completed the awspx visualization for the next excercise, so the instructions will jump straight to pmapper.
 
 > **NOTE:**
-> Each excercise has instructions for both awspx and pmapper, which is in many cases redundant, but will familiarize you with both tools. Feel free to focus on one tool if you prefer.
+> Most excercises have instructions for both awspx and pmapper, which is in many cases redundant, but will familiarize you with both tools. Feel free to focus on one tool if you prefer.
+>
+> Some
 
 ## Exercise 2: PutGroupPolicy - Self-Escalation via Groups
 
@@ -582,10 +642,6 @@ aws sts get-caller-identity
 
 **Real-world scenario:** A CI/CD pipeline user needs `iam:PassRole` to deploy Lambda functions and has separate EC2 permissions for build infrastructure. Without the `iam:PassedToService` condition, PassRole isn't scoped to Lambda — it works for all services. The attacker exploits this gap by passing a privileged role to EC2 instead.
 
-### Visualize in awspx
-
-Open **Advanced Search** in awspx. Set **From** to `iamws-ci-runner-user` and **To** to `Effective Admin`, then click **Run** (▶). You should see a maroon dashed attack edge showing the EC2-related escalation path — awspx has identified that this user can pass a privileged role to an EC2 instance to reach admin.
-
 ### Part A: Identify with pmapper
 
 ```bash
@@ -676,7 +732,7 @@ echo "Subnet: $SUBNET_ID"
 
 **Step 3: Launch EC2 with the privileged instance profile**
 
-This is the vulnerability proven — unrestricted `iam:PassRole` allows attaching an admin role to EC2:
+This is the vulnerability proven — unrestricted `iam:PassRole` allows attaching an admin role to a new EC2:
 
 ```bash
 INSTANCE_ID=$(aws ec2 run-instances \
@@ -759,7 +815,7 @@ exit
 ## Exercise 6: UpdateFunctionCode - Existing PassRole
 
 **Category:** Existing PassRole
-**Attacker:** `iamws-lambda-developer-user`
+**Starting IAM Principal:** `iamws-lambda-developer-user`
 **Target:** `iamws-privileged-lambda` (with `iamws-privileged-lambda-role`)
 
 **The Vulnerability:** The `iamws-lambda-developer-user` can update the code of ANY Lambda function—including functions that have privileged execution roles. By replacing the code with a malicious payload, they can exfiltrate the Lambda's credentials.
@@ -948,7 +1004,7 @@ rm -rf /tmp/iamws-exploit
 ## Exercise 7: GetFunctionConfiguration - Credential Access
 
 **Category:** Credential Access
-**Attacker:** `iamws-secrets-reader-user`
+**Starting IAM Principal:** `iamws-secrets-reader-user`
 **Target:** Secrets in `iamws-app-with-secrets` Lambda environment variables
 
 **The Vulnerability:** The `iamws-secrets-reader-user` can read Lambda function configurations, which include environment variables. A Lambda function has secrets (database password, API keys) stored in plaintext environment variables—visible to anyone who can call `GetFunctionConfiguration`.

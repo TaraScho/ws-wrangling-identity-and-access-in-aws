@@ -8,6 +8,12 @@ if [ -z "$BASH_VERSION" ]; then exec bash "$0" "$@"; fi
 set -euo pipefail
 
 # ============================================================================
+# AWS CLI defaults
+# ============================================================================
+export AWS_DEFAULT_REGION="us-east-1"
+export AWS_PAGER=""
+
+# ============================================================================
 # Helpers
 # ============================================================================
 
@@ -152,9 +158,73 @@ WRAPPER
 fi
 
 # ============================================================================
-# Step 4 — Set up awspx wrapper
+# Step 4 — Install SSM Session Manager plugin
 # ============================================================================
-step_banner "Step 4: Setting up awspx wrapper"
+step_banner "Step 4: Installing SSM Session Manager plugin"
+
+if command -v session-manager-plugin &>/dev/null; then
+  echo "  ✓ SSM Session Manager plugin already installed"
+else
+  echo "  Downloading SSM Session Manager plugin..."
+  if command -v yum &>/dev/null; then
+    wget -q -O /tmp/session-manager-plugin.rpm \
+      "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_64bit/session-manager-plugin.rpm" \
+      || fail "Failed to download SSM Session Manager plugin."
+    sudo yum install -y /tmp/session-manager-plugin.rpm &>/dev/null \
+      || fail "Failed to install SSM Session Manager plugin."
+    rm -f /tmp/session-manager-plugin.rpm
+  elif command -v dpkg &>/dev/null; then
+    wget -q -O /tmp/session-manager-plugin.deb \
+      "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" \
+      || fail "Failed to download SSM Session Manager plugin."
+    sudo dpkg -i /tmp/session-manager-plugin.deb &>/dev/null \
+      || fail "Failed to install SSM Session Manager plugin."
+    rm -f /tmp/session-manager-plugin.deb
+  else
+    fail "Could not detect package manager (yum or dpkg) to install SSM Session Manager plugin."
+  fi
+
+  command -v session-manager-plugin &>/dev/null \
+    || fail "SSM Session Manager plugin installed but not found on PATH."
+  echo "  ✓ SSM Session Manager plugin installed"
+fi
+
+# ============================================================================
+# Step 5 — Recreate awspx container (clean slate every time)
+# ============================================================================
+step_banner "Step 5: Recreating awspx Docker container"
+
+# Always nuke and recreate. The AMI-baked container was created in a different
+# VPC and has a stale Docker network namespace that can't resolve DNS.
+
+sudo docker stop awspx &>/dev/null
+sudo docker rm awspx &>/dev/null
+sudo docker rmi beatro0t/awspx:latest &>/dev/null
+
+echo "  Pulling awspx image..."
+sudo docker pull beatro0t/awspx:latest \
+  || fail "Failed to pull awspx image. Check your internet connection."
+
+echo "  Creating awspx container..."
+sudo docker run -itd \
+  --name awspx \
+  --hostname=awspx \
+  --env NEO4J_AUTH=neo4j/password \
+  -p 127.0.0.1:10080:80 \
+  -p 127.0.0.1:7687:7687 \
+  -p 127.0.0.1:7373:7373 \
+  -p 127.0.0.1:7474:7474 \
+  -v /opt/awspx/data:/opt/awspx/data:z \
+  -e NEO4J_dbms_security_procedures_unrestricted=apoc.jar \
+  --restart=always beatro0t/awspx:latest >/dev/null \
+  || fail "Failed to create awspx container."
+
+echo "  ✓ awspx container created"
+
+# ============================================================================
+# Step 6 — Set up awspx wrapper
+# ============================================================================
+step_banner "Step 6: Setting up awspx wrapper"
 
 cat > "$TOOLS_DIR/bin/awspx" << 'WRAPPER'
 #!/bin/bash
@@ -180,17 +250,21 @@ awspx --help &>/dev/null \
 echo "  ✓ awspx wrapper created and validated"
 
 # ============================================================================
-# Step 5 — Persist PATH
+# Step 7 — Persist PATH and AWS defaults
 # ============================================================================
-step_banner "Step 5: Persisting PATH"
+step_banner "Step 7: Persisting PATH and AWS defaults"
 
 PATH_LINE="export PATH=\"$TOOLS_DIR/bin:\$PATH\""
+REGION_LINE='export AWS_DEFAULT_REGION="us-east-1"'
+PAGER_LINE='export AWS_PAGER=""'
 
 for rcfile in "$HOME/.bashrc" "$HOME/.profile"; do
   if ! grep -qF "$TOOLS_DIR/bin" "$rcfile" 2>/dev/null; then
     echo "" >> "$rcfile"
     echo "# Workshop tools" >> "$rcfile"
     echo "$PATH_LINE" >> "$rcfile"
+    echo "$REGION_LINE" >> "$rcfile"
+    echo "$PAGER_LINE" >> "$rcfile"
     echo "  ✓ Added to $rcfile"
   else
     echo "  ✓ Already in $rcfile"
@@ -198,9 +272,9 @@ for rcfile in "$HOME/.bashrc" "$HOME/.profile"; do
 done
 
 # ============================================================================
-# Step 6 — Deploy lab infrastructure (terraform)
+# Step 8 — Deploy lab infrastructure (terraform)
 # ============================================================================
-step_banner "Step 6: Deploying lab infrastructure with Terraform"
+step_banner "Step 8: Deploying lab infrastructure with Terraform"
 
 echo "  Running terraform init..."
 terraform -chdir="$TERRAFORM_DIR" init -input=false \
@@ -213,11 +287,11 @@ terraform -chdir="$TERRAFORM_DIR" apply -auto-approve -input=false \
 echo "  ✓ Lab infrastructure deployed"
 
 # ============================================================================
-# Step 7 — Set up exercise AWS CLI profiles
+# Step 9 — Set up exercise AWS CLI profiles
 # ============================================================================
-step_banner "Step 7: Configuring exercise AWS CLI profiles"
+step_banner "Step 9: Configuring exercise AWS CLI profiles"
 
-REGION=$(aws configure get region 2>/dev/null || echo "us-east-1")
+REGION="us-east-1"
 
 PROFILES=(
   "iamws-group-admin-user:group_admin"
@@ -253,6 +327,49 @@ echo ""
 echo "  ✓ $PROFILE_COUNT exercise profiles configured"
 
 # ============================================================================
+# Step 10 — Persistent default profile (survives session disconnect)
+# ============================================================================
+step_banner "Step 10: Setting up persistent default profile"
+
+# The facilitator's temporary credentials (env vars) are lost on disconnect.
+# This step creates a long-lived IAM user whose access key is stored in
+# ~/.aws/credentials [default], so the CLI keeps working after reconnect.
+
+DEFAULT_USER="iamws-lab-default"
+
+if aws sts get-caller-identity --profile default 2>/dev/null | grep -q "$DEFAULT_USER"; then
+  echo "  ✓ Persistent default profile already configured"
+else
+  # Create user if it doesn't exist
+  if aws iam get-user --user-name "$DEFAULT_USER" &>/dev/null; then
+    echo "  IAM user $DEFAULT_USER already exists"
+  else
+    echo "  Creating IAM user $DEFAULT_USER..."
+    aws iam create-user --user-name "$DEFAULT_USER" --output text &>/dev/null \
+      || fail "Failed to create IAM user $DEFAULT_USER."
+    aws iam attach-user-policy --user-name "$DEFAULT_USER" \
+      --policy-arn arn:aws:iam::aws:policy/AdministratorAccess \
+      || fail "Failed to attach AdministratorAccess to $DEFAULT_USER."
+  fi
+
+  echo "  Creating access key..."
+  KEY_JSON=$(aws iam create-access-key --user-name "$DEFAULT_USER" --output json) \
+    || fail "Failed to create access key for $DEFAULT_USER. (Max 2 keys per user — delete old keys if needed.)"
+
+  AK=$(echo "$KEY_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['AccessKey']['AccessKeyId'])")
+  SK=$(echo "$KEY_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['AccessKey']['SecretAccessKey'])")
+
+  aws configure set aws_access_key_id "$AK" --profile default
+  aws configure set aws_secret_access_key "$SK" --profile default
+  aws configure set region "$REGION" --profile default
+
+  aws sts get-caller-identity --profile default &>/dev/null \
+    || fail "Default profile created but authentication failed."
+  echo "  ✓ Persistent default profile configured ($DEFAULT_USER)"
+  echo "    If you lose your session, your CLI will automatically use this profile."
+fi
+
+# ============================================================================
 # Final — Validation summary
 # ============================================================================
 step_banner "Validation Summary"
@@ -273,6 +390,8 @@ check() {
 check "terraform"    "terraform version"
 check "pmapper"      "pmapper --help"
 check "awspx"        "awspx --help"
+check "ssm plugin"   "command -v session-manager-plugin"
+check "default profile" "aws sts get-caller-identity --profile default"
 
 IAMWS_COUNT=$(aws configure list-profiles 2>/dev/null | grep -c iamws || true)
 TOTAL=$((TOTAL + 1))
