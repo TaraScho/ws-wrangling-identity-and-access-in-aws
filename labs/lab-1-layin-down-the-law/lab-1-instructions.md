@@ -16,9 +16,53 @@ In this lab, you'll use open source tools to discover and exploit privilege esca
 
 ## Environment Set Up
 
+## Step 0: Configure https://learn.resilientsecurity.cloud/
+
+If you are taking this workshop from https://learn.resilientsecurity.cloud/ - you have access to a virtual workstation and sandbox AWS account. Use these instructions to set up your environment.
+
+> **NOTE**
+> If you are using these workshop instructions in your own environment - reference `lab-0-prerequisites.md` to set up the dependencies.
+
+1. Start at **[https://learn.resilientsecurity.cloud/course/course-002](https://learn.resilientsecurity.cloud/course/course-002)** and enter the enrollment code provided by your facilitator. You are enrolling in the **Wrangling Identity and Access in AWS** course.
+
+   ![Wrangling Identity and Access in AWS course page](assets/wrangling-identity-course.png)
+
+1. Start your virtual machine. This VM is for you to practice and play in a safe sandbox environment during the workshop.
+
+   ![Start Workstation button](assets/start-workstation.png)
+
+1. Allocate a sandbox AWS account for yourself.
+
+   ![Allocate AWS Accounts button](assets/allocate-aws-accoun.png)
+
+1. Open the web desktop for your virtual machine.
+
+   ![Open Web Desktop button](assets/open-web-desktop.png)
+
+1. Log in to the virtual desktop with the guacamole creds.
+
+   ![Guacamole login credentials](assets/guacamole-credentials.png)
+
+   Once logged in, open a terminal on the virtual desktop.
+
+   ![Virtual desktop terminal](assets/web-desktop-terminal.png)
+
 ## Step 1: Configure AWS Credentials
 
-Paste the `export` commands provided by the workshop facilitator into your terminal session:
+1. Find and copy your sandbox AWS credentials here - you will use these to authenticate your virtual machine with your lab AWS account.
+
+   ![Find credentials button](assets/find-credentials-button.png)
+
+   Click **Credentials**, then click **Copy as Shell Export** to copy the credentials to your clipboard.
+
+   ![Copy as Shell Export button](assets/copy-aws-creds-as-shell-export.png)
+
+   > **NOTE**
+   > Copying and pasting in guacamole virtual desktop can be tough. Check out the [tips here](https://guacamole.apache.org/doc/gug/using-guacamole.html) or feel free to ask chatGPT/Google to help you find the best copy paste method for your OS.
+
+1. Copy the credentials into the virtual machine terminal - now your virtual machine is authenticated with the sandbox AWS account.
+
+   ![Pasting AWS credentials in the terminal](assets/paste-aws-creds-in-ubuntu-terminal.png)
 
 ```bash
 export AWS_ACCESS_KEY_ID=AKIA...
