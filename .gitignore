@@ -1,6 +1,7 @@
 # Project-specific
 /reference-repos/*
 pmapper-findings.txt
+tools/
 
 # Claude Code
 .claude/

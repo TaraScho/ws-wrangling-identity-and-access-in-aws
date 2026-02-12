@@ -9,10 +9,10 @@ In this 2-hour hands-on workshop learners will navigate the world of identity an
 
 1. A sandbox AWS account (NOT production!) with credentials for an IAM role/user with the following permissions:
    - TODO - add permissions
-2. AWS CLI configured with credentials
-3. Terraform 
-4. Python 3.8+ with pip
-5. Basic familiarity with JSON
+1. AWS CLI configured with credentials
+1. Terraform
+1. Python 3.8+ with pip
+1. Basic familiarity with JSON
 
 > [!IMPORTANT]
 > 🚨 This workshop deploys intentionally vulnerable IAM infrastructure to your sandbox account. Do not deploy workshop resources to an AWS account with any production data or workloads.

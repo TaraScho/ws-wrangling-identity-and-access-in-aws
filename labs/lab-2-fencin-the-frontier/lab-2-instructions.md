@@ -4,13 +4,13 @@
 
 ## Overview
 
-In Lab 1, you exploited five privilege escalation vulnerabilities—each with a different root cause. Now you'll learn how to prevent them using AWS IAM guardrails. Each exercise follows the pattern: **Recap → Remediate → Verify**.
+In Lab 1, you exploited six privilege escalation vulnerabilities—each with a different root cause. Now you'll learn how to prevent them using AWS IAM guardrails. Each exercise follows the pattern: **Recap → Remediate → Verify**.
 
 **What You'll Learn:**
 - How **permissions boundaries** cap effective permissions (even for users who can modify their own policies)
 - How **trust policies** (resource policies) control who can assume roles
 - How **condition keys** (`iam:PassedToService`) restrict PassRole to specific services
-- How **resource constraints** limit which resources can be modified
+- How **resource constraints** limit which resources can be modified (Lambda ARNs and group ARNs)
 - Why **Secrets Manager** is essential for credential management
 
 **Why This Matters:**
@@ -20,13 +20,13 @@ Finding vulnerabilities is only half the battle. Knowing how to fix them—and u
 
 ## Prerequisites
 
-- Completed Lab 1 (you understand the five vulnerabilities)
+- Completed Lab 1 (you understand the six vulnerabilities)
 - AWS CLI configured with admin credentials for applying remediations
 - Terraform infrastructure still deployed
 
 ---
 
-## The Five Guardrails
+## The Six Guardrails
 
 Before diving into the exercises, here's a preview of the guardrails we'll apply:
 
@@ -37,22 +37,19 @@ Before diving into the exercises, here's a preview of the guardrails we'll apply
 | PassRole + EC2 | New PassRole | Missing condition key | **iam:PassedToService** | Condition Key |
 | UpdateFunctionCode | Existing PassRole | Can modify any Lambda | **Resource Constraint** | Identity Policy |
 | GetFunctionConfiguration | Credential Access | Secrets in plaintext | **Secrets Manager** | Best Practice |
+| PutGroupPolicy | Self-Escalation | PutGroupPolicy on own group | **Resource Constraint** | Identity Policy |
 
 ---
 
 ## Exercise 1: Permissions Boundary for CreatePolicyVersion
 
-### Recap: The Vulnerability
+### Recap
 
-In Lab 1, you exploited `iamws-policy-developer-user` to create a new version of a policy attached to themselves, escalating to administrator.
-
-- **Attack:** `iam:CreatePolicyVersion` on attached policy
-- **Category:** Self-Escalation
-- **Root Cause:** Can modify a policy that grants your own permissions
-
-**Why resource constraints don't fully fix this:** Even if you restrict which policies can be modified, if the user can modify ANY policy attached to themselves, they can escalate.
+In Lab 1 Exercise 3, you exploited `iamws-policy-developer-user` to create an admin policy version attached to themselves (Self-Escalation via `iam:CreatePolicyVersion`). The root cause: can modify a policy that grants your own permissions.
 
 ### Understanding Permissions Boundaries
+
+**Why resource constraints don't fully fix this:** Even if you restrict which policies can be modified, if the user can modify ANY policy attached to themselves, they can escalate. That's why this vulnerability needs a permissions boundary — a fundamentally different kind of control.
 
 A permissions boundary is a **ceiling** on what permissions an IAM principal can have. Even if a user modifies their own policy to grant `*:*`, the boundary limits what they can actually do.
 
@@ -125,7 +122,7 @@ A permissions boundary is a **ceiling** on what permissions an IAM principal can
 
    **Note the explicit denies:** These block privilege escalation actions regardless of identity policy permissions.
 
-2. **Create the policy in IAM:**
+1. **Create the policy in IAM:**
    ```bash
    ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
@@ -156,41 +153,28 @@ aws iam put-role-permissions-boundary \
 Now test that the attack is blocked:
 
 ```bash
-# Assume the vulnerable role
-CREDS=$(aws sts assume-role \
-  --role-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-policy-developer-role \
-  --role-session-name verify \
-  --query "Credentials" \
-  --output json)
-
-export AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.AccessKeyId')
-export AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.SecretAccessKey')
-export AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.SessionToken')
-
-# Try the attack
+# Try the attack as the vulnerable user
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text \
+  --profile iamws-policy-developer-user)
 POLICY_ARN="arn:aws:iam::${ACCOUNT_ID}:policy/iamws-developer-tools-policy"
 
 aws iam create-policy-version \
   --policy-arn $POLICY_ARN \
   --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"*","Resource":"*"}]}' \
-  --set-as-default
+  --set-as-default \
+  --profile iamws-policy-developer-user
 ```
 
 **Expected result:**
 ```
 An error occurred (AccessDenied) when calling the CreatePolicyVersion operation:
-User: arn:aws:sts::ACCOUNT_ID:assumed-role/iamws-policy-developer-role/verify
+User: arn:aws:iam::ACCOUNT_ID:user/iamws-policy-developer-user
 is not authorized to perform: iam:CreatePolicyVersion on resource:
 policy arn:aws:iam::ACCOUNT_ID:policy/iamws-developer-tools-policy
 with an explicit deny in a permissions boundary
 ```
 
 **The attack is blocked!** The boundary explicitly denies `iam:CreatePolicyVersion`.
-
-```bash
-# Reset credentials
-unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
-```
 
 ### What You Learned
 
@@ -203,13 +187,9 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 
 ## Exercise 2: Harden Trust Policy for AssumeRole
 
-### Recap: The Vulnerability
+### Recap
 
-In Lab 1, you exploited the `iamws-privileged-admin-role` because its trust policy trusted the account root (`:root`)—meaning any principal in the account with `sts:AssumeRole` could assume it.
-
-- **Attack:** `sts:AssumeRole` to overly-trusted role
-- **Category:** Principal Access
-- **Root Cause:** Trust policy uses `:root` instead of specific principals
+In Lab 1 Exercise 4, you exploited `iamws-privileged-admin-role` because its trust policy trusted `:root` — letting any principal assume it (Principal Access). The root cause: trust policy uses `:root` instead of specific principals.
 
 ### Understanding Trust Policies
 
@@ -282,43 +262,30 @@ aws iam update-assume-role-policy \
 
 **What we changed:**
 1. **Specific principal:** Only your admin role can assume it (not anyone in the account)
-2. **MFA condition:** Requires MFA for additional security
+1. **MFA condition:** Requires MFA for additional security
 
 ### Part C: Verify the Remediation
 
 ```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-# Assume the attacker role
-CREDS=$(aws sts assume-role \
-  --role-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-role-assumer-role \
-  --role-session-name verify \
-  --query "Credentials" \
-  --output json)
-
-export AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.AccessKeyId')
-export AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.SecretAccessKey')
-export AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.SessionToken')
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text \
+  --profile iamws-role-assumer-user)
 
 # Try to assume the privileged role
 aws sts assume-role \
   --role-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-privileged-admin-role \
-  --role-session-name escalated
+  --role-session-name escalated \
+  --profile iamws-role-assumer-user
 ```
 
 **Expected result:**
 ```
 An error occurred (AccessDenied) when calling the AssumeRole operation:
-User: arn:aws:sts::ACCOUNT_ID:assumed-role/iamws-role-assumer-role/verify
+User: arn:aws:iam::ACCOUNT_ID:user/iamws-role-assumer-user
 is not authorized to perform: sts:AssumeRole on resource:
 arn:aws:iam::ACCOUNT_ID:role/iamws-privileged-admin-role
 ```
 
 **The attack is blocked!** The hardened trust policy doesn't trust the attacker.
-
-```bash
-unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
-```
 
 ### What You Learned
 
@@ -331,30 +298,26 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 
 ## Exercise 3: Condition Key for PassRole + EC2
 
-### Recap: The Vulnerability
+### Recap
 
-In Lab 1, you identified that `iamws-ci-runner-user` could pass any role to EC2 because the PassRole permission was missing the `iam:PassedToService` condition key.
-
-- **Attack:** `iam:PassRole` + `ec2:RunInstances` with privileged role
-- **Category:** New PassRole
-- **Root Cause:** Missing `iam:PassedToService` condition
+In Lab 1 Exercise 5, you launched an EC2 instance with a privileged instance profile because `iamws-ci-runner` had unrestricted `iam:PassRole` (New PassRole). The PassRole was intended for Lambda deployments, but without the `iam:PassedToService` condition it worked for any service — including EC2.
 
 ### Understanding iam:PassedToService
 
-The `iam:PassedToService` condition key restricts which AWS service a role can be passed to:
+The `iam:PassedToService` condition key restricts which AWS service a role can be passed to. Since the CI runner's PassRole is intended for Lambda deployments, we scope it to Lambda:
 
 ```json
 {
   "Condition": {
     "StringEquals": {
-      "iam:PassedToService": "ec2.amazonaws.com"
+      "iam:PassedToService": "lambda.amazonaws.com"
     }
   }
 }
 ```
 
 This ensures:
-- The role can ONLY be passed to EC2 (not Lambda, ECS, etc.)
+- The role can ONLY be passed to Lambda (not EC2, ECS, etc.) — completely blocking the EC2 attack path from Lab 1
 - Combined with a resource constraint, you can limit WHICH roles can be passed
 
 ### Part A: Create the Restrictive PassRole Policy
@@ -369,13 +332,13 @@ aws iam put-user-policy \
     "Version": "2012-10-17",
     "Statement": [
       {
-        "Sid": "AllowPassRoleToEC2Only",
+        "Sid": "AllowPassRoleToLambdaOnly",
         "Effect": "Allow",
         "Action": "iam:PassRole",
         "Resource": "arn:aws:iam::'${ACCOUNT_ID}':role/iamws-ci-runner-role",
         "Condition": {
           "StringEquals": {
-            "iam:PassedToService": "ec2.amazonaws.com"
+            "iam:PassedToService": "lambda.amazonaws.com"
           }
         }
       },
@@ -403,13 +366,13 @@ aws iam put-role-policy \
     "Version": "2012-10-17",
     "Statement": [
       {
-        "Sid": "AllowPassRoleToEC2Only",
+        "Sid": "AllowPassRoleToLambdaOnly",
         "Effect": "Allow",
         "Action": "iam:PassRole",
         "Resource": "arn:aws:iam::'${ACCOUNT_ID}':role/iamws-ci-runner-role",
         "Condition": {
           "StringEquals": {
-            "iam:PassedToService": "ec2.amazonaws.com"
+            "iam:PassedToService": "lambda.amazonaws.com"
           }
         }
       },
@@ -445,44 +408,33 @@ aws iam detach-role-policy \
 
 ### Part C: Verify the Remediation
 
+We use `simulate-principal-policy` to test the user's effective permissions. This command requires `iam:SimulatePrincipalPolicy` permission, so we run it as admin (your default profile) while simulating what the CI runner **user** can do:
+
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 
-# Assume the CI runner role
-CREDS=$(aws sts assume-role \
-  --role-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-ci-runner-role \
-  --role-session-name verify \
-  --query "Credentials" \
-  --output json)
-
-export AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.AccessKeyId')
-export AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.SecretAccessKey')
-export AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.SessionToken')
-
-# Verify: Can pass their own role to EC2 (should work)
-echo "Testing: Can pass iamws-ci-runner-role to EC2?"
+# Verify: Can pass their own role to Lambda (should work)
+echo "Testing: Can iamws-ci-runner-user pass iamws-ci-runner-role to Lambda?"
 aws iam simulate-principal-policy \
-  --policy-source-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-ci-runner-role \
+  --policy-source-arn arn:aws:iam::${ACCOUNT_ID}:user/iamws-ci-runner-user \
   --action-names iam:PassRole \
   --resource-arns arn:aws:iam::${ACCOUNT_ID}:role/iamws-ci-runner-role \
-  --context-entries '[{"ContextKeyName":"iam:PassedToService","ContextKeyValues":["ec2.amazonaws.com"],"ContextKeyType":"string"}]' \
+  --context-entries '[{"ContextKeyName":"iam:PassedToService","ContextKeyValues":["lambda.amazonaws.com"],"ContextKeyType":"string"}]' \
   --query 'EvaluationResults[0].EvalDecision'
 
-# Verify: Cannot pass the privileged role (should fail)
-echo "Testing: Can pass iamws-prod-deploy-role to EC2? (should fail)"
+# Verify: Cannot pass any role to EC2 (should fail — the attack path is blocked)
+echo "Testing: Can iamws-ci-runner-user pass iamws-prod-deploy-role to EC2? (should fail)"
 aws iam simulate-principal-policy \
-  --policy-source-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-ci-runner-role \
+  --policy-source-arn arn:aws:iam::${ACCOUNT_ID}:user/iamws-ci-runner-user \
   --action-names iam:PassRole \
   --resource-arns arn:aws:iam::${ACCOUNT_ID}:role/iamws-prod-deploy-role \
   --context-entries '[{"ContextKeyName":"iam:PassedToService","ContextKeyValues":["ec2.amazonaws.com"],"ContextKeyType":"string"}]' \
   --query 'EvaluationResults[0].EvalDecision'
-
-unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 ```
 
 **Expected result:**
-- First query: `"allowed"` (can pass their own role)
-- Second query: `"implicitDeny"` (cannot pass the privileged role)
+- First query: `"allowed"` (can pass their own role to Lambda — the legitimate use case)
+- Second query: `"implicitDeny"` (cannot pass any role to EC2 — the attack path is blocked)
 
 ### What You Learned
 
@@ -495,13 +447,9 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 
 ## Exercise 4: Resource Constraint for UpdateFunctionCode
 
-### Recap: The Vulnerability
+### Recap
 
-In Lab 1, you identified that `iamws-lambda-developer-user` could update ANY Lambda function—including ones with privileged execution roles.
-
-- **Attack:** `lambda:UpdateFunctionCode` on privileged Lambda
-- **Category:** Existing PassRole
-- **Root Cause:** `Resource: "*"` allows modifying any Lambda
+In Lab 1 Exercise 6, you hijacked `iamws-privileged-lambda` by replacing its code with a credential-exfiltration payload (Existing PassRole via `lambda:UpdateFunctionCode`). The root cause: `Resource: "*"` allowed modifying any Lambda.
 
 ### Understanding Resource Constraints
 
@@ -591,32 +539,18 @@ aws iam detach-role-policy \
 ### Part C: Verify the Remediation
 
 ```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-# Assume the Lambda developer role
-CREDS=$(aws sts assume-role \
-  --role-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-lambda-developer-role \
-  --role-session-name verify \
-  --query "Credentials" \
-  --output json)
-
-export AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.AccessKeyId')
-export AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.SecretAccessKey')
-export AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.SessionToken')
-
 # Try to update the privileged Lambda (should fail)
 echo "Testing: Can update iamws-privileged-lambda? (should fail)"
 aws lambda update-function-code \
   --function-name iamws-privileged-lambda \
-  --zip-file fileb:///dev/null 2>&1 | head -3
-
-unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+  --zip-file fileb:///dev/null \
+  --profile iamws-lambda-developer-user 2>&1 | head -3
 ```
 
 **Expected result:**
 ```
 An error occurred (AccessDeniedException) when calling the UpdateFunctionCode operation:
-User: arn:aws:sts::ACCOUNT_ID:assumed-role/iamws-lambda-developer-role/verify
+User: arn:aws:iam::ACCOUNT_ID:user/iamws-lambda-developer-user
 is not authorized to perform: lambda:UpdateFunctionCode on resource:
 arn:aws:lambda:us-east-1:ACCOUNT_ID:function:iamws-privileged-lambda
 ```
@@ -634,13 +568,9 @@ arn:aws:lambda:us-east-1:ACCOUNT_ID:function:iamws-privileged-lambda
 
 ## Exercise 5: Secrets Manager for Credential Access
 
-### Recap: The Vulnerability
+### Recap
 
-In Lab 1, you exploited `iamws-secrets-reader-user` to read secrets from Lambda environment variables using `GetFunctionConfiguration`.
-
-- **Attack:** `lambda:GetFunctionConfiguration` to read env var secrets
-- **Category:** Credential Access
-- **Root Cause:** Secrets stored in plaintext environment variables
+In Lab 1 Exercise 7, you read plaintext secrets from Lambda environment variables using `lambda:GetFunctionConfiguration` (Credential Access). The root cause: secrets stored in env vars instead of a proper secrets manager.
 
 ### Understanding the Problem
 
@@ -651,8 +581,8 @@ Lambda environment variables are NOT secure storage:
 
 **The fix isn't an IAM policy change—it's architectural:**
 1. Store secrets in AWS Secrets Manager
-2. Grant the Lambda role permission to read specific secrets
-3. Retrieve secrets at runtime in the Lambda code
+1. Grant the Lambda role permission to read specific secrets
+1. Retrieve secrets at runtime in the Lambda code
 
 ### Part A: Create a Secret in Secrets Manager
 
@@ -738,37 +668,24 @@ aws lambda update-function-configuration \
 ### Part E: Verify the Remediation
 
 ```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-
-# Assume the secrets reader role
-CREDS=$(aws sts assume-role \
-  --role-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-secrets-reader-role \
-  --role-session-name verify \
-  --query "Credentials" \
-  --output json)
-
-export AWS_ACCESS_KEY_ID=$(echo $CREDS | jq -r '.AccessKeyId')
-export AWS_SECRET_ACCESS_KEY=$(echo $CREDS | jq -r '.SecretAccessKey')
-export AWS_SESSION_TOKEN=$(echo $CREDS | jq -r '.SessionToken')
-
 # Try to read secrets from the Lambda env vars
 echo "Testing: Can read secrets from Lambda env vars?"
 aws lambda get-function-configuration \
   --function-name iamws-app-with-secrets \
   --query 'Environment.Variables' \
-  --output json
+  --output json \
+  --profile iamws-secrets-reader-user
 
 # Try to read the secret from Secrets Manager
 echo "Testing: Can read from Secrets Manager directly?"
 aws secretsmanager get-secret-value \
-  --secret-id iamws-app-secrets 2>&1 | head -3
-
-unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+  --secret-id iamws-app-secrets \
+  --profile iamws-secrets-reader-user 2>&1 | head -3
 ```
 
 **Expected results:**
 1. Lambda env vars: `{}` or `null` (no secrets)
-2. Secrets Manager: `AccessDeniedException` (the reader doesn't have `secretsmanager:GetSecretValue`)
+1. Secrets Manager: `AccessDeniedException` (the reader doesn't have `secretsmanager:GetSecretValue`)
 
 **The attack is blocked!** Secrets are now:
 - Not visible via `GetFunctionConfiguration`
@@ -788,6 +705,133 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 
 ---
 
+## Exercise 6: Resource Constraint for PutGroupPolicy
+
+### Recap
+
+In Lab 1 Exercise 2, you exploited `iamws-group-admin-user` to write an admin inline policy on `iamws-dev-team` — a group the attacker belongs to (Self-Escalation via `iam:PutGroupPolicy`). The root cause: `Resource: "*"` allowed writing inline policies on any group, including the attacker's own.
+
+### Understanding the Fix
+
+This is the same principle as Exercise 4's resource constraint, applied to group ARNs instead of Lambda ARNs. By restricting `iam:PutGroupPolicy` to only specific groups that the principal is **not** a member of, you prevent the self-escalation path.
+
+The key insight: `iamws-group-admin-user` is a member of `iamws-dev-team` but **not** a member of `iamws-platform-team`. If we restrict `PutGroupPolicy` to only `iamws-platform-team`, the attacker can still manage group policies for that team — but can't escalate their own permissions.
+
+### Part A: Create the Restrictive Policy
+
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+
+# Apply restrictive inline policy to the user
+aws iam put-user-policy \
+  --user-name iamws-group-admin-user \
+  --policy-name SecureGroupAdmin \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "AllowPutGroupPolicyOnPlatformTeamOnly",
+        "Effect": "Allow",
+        "Action": "iam:PutGroupPolicy",
+        "Resource": "arn:aws:iam::'${ACCOUNT_ID}':group/iamws-platform-team"
+      },
+      {
+        "Sid": "AllowGroupEnumeration",
+        "Effect": "Allow",
+        "Action": [
+          "iam:ListGroups",
+          "iam:ListGroupPolicies",
+          "iam:GetGroupPolicy",
+          "iam:ListGroupsForUser",
+          "iam:GetGroup"
+        ],
+        "Resource": "*"
+      }
+    ]
+  }'
+
+# Also apply to the role
+aws iam put-role-policy \
+  --role-name iamws-group-admin-role \
+  --policy-name SecureGroupAdmin \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "AllowPutGroupPolicyOnPlatformTeamOnly",
+        "Effect": "Allow",
+        "Action": "iam:PutGroupPolicy",
+        "Resource": "arn:aws:iam::'${ACCOUNT_ID}':group/iamws-platform-team"
+      },
+      {
+        "Sid": "AllowGroupEnumeration",
+        "Effect": "Allow",
+        "Action": [
+          "iam:ListGroups",
+          "iam:ListGroupPolicies",
+          "iam:GetGroupPolicy",
+          "iam:ListGroupsForUser",
+          "iam:GetGroup"
+        ],
+        "Resource": "*"
+      }
+    ]
+  }'
+```
+
+### Part B: Remove the Overly-Permissive Policy
+
+```bash
+aws iam detach-user-policy \
+  --user-name iamws-group-admin-user \
+  --policy-arn arn:aws:iam::${ACCOUNT_ID}:policy/iamws-group-admin-policy 2>/dev/null || true
+
+aws iam detach-role-policy \
+  --role-name iamws-group-admin-role \
+  --policy-arn arn:aws:iam::${ACCOUNT_ID}:policy/iamws-group-admin-policy 2>/dev/null || true
+```
+
+### Part C: Verify the Remediation
+
+```bash
+# Try the original attack: PutGroupPolicy on iamws-dev-team (should fail)
+echo "Testing: Can write inline policy on iamws-dev-team? (should fail)"
+aws iam put-group-policy \
+  --group-name iamws-dev-team \
+  --policy-name test-escalation \
+  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"*","Resource":"*"}]}' \
+  --profile iamws-group-admin-user 2>&1
+
+# Try on iamws-platform-team (should succeed)
+echo "Testing: Can write inline policy on iamws-platform-team? (should succeed)"
+aws iam put-group-policy \
+  --group-name iamws-platform-team \
+  --policy-name test-allowed \
+  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"s3:GetObject","Resource":"*"}]}' \
+  --profile iamws-group-admin-user
+
+# Clean up the test policy
+aws iam delete-group-policy \
+  --group-name iamws-platform-team \
+  --policy-name test-allowed \
+  --profile iamws-group-admin-user 2>/dev/null || true
+```
+
+**Expected results:**
+- `iamws-dev-team`: `AccessDenied` — the user can no longer write policies on their own group
+- `iamws-platform-team`: Success — they can still manage the group they're authorized for
+
+**The attack is blocked!** The resource constraint prevents the self-escalation path.
+
+### What You Learned
+
+- **Resource constraints** prevent self-escalation via group policies — same principle as Exercise 4
+- Restricting `PutGroupPolicy` to specific group ARNs ensures users can only manage groups they're authorized for
+- Combine resource constraints with **naming conventions** (e.g., team-based group prefixes) for scalable access control
+- Always ask: "Is this principal a member of any group they can write policies on?"
+
+---
+
 ## Wrap-up
 
 ### Summary: What You Applied
@@ -799,6 +843,7 @@ unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 | 3 | PassRole + EC2 | Condition Key | `iam:PassedToService` |
 | 4 | UpdateFunctionCode | Resource Constraint | `Resource: "arn:...:function:dev-*"` |
 | 5 | GetFunctionConfiguration | Secrets Manager | Architectural change |
+| 6 | PutGroupPolicy | Resource Constraint | Restrict group ARNs in Resource |
 
 ### Defense in Depth Diagram
 
@@ -829,20 +874,22 @@ Each layer provides independent protection. Even if one layer has a misconfigura
 ### Key Takeaways
 
 1. **Permissions boundaries** are essential for self-escalation attacks—they're the ONLY control that works when users can modify their own policies
-2. **Trust policies** using `:root` trust the entire account—always use specific principals
-3. **`iam:PassedToService`** is required for ANY policy that grants PassRole
-4. **Resource constraints** are the primary defense for "Existing PassRole" attacks
-5. **Secrets Manager** is the only acceptable way to store credentials—never use env vars
+1. **Trust policies** using `:root` trust the entire account—always use specific principals
+1. **`iam:PassedToService`** is required for ANY policy that grants PassRole
+1. **Resource constraints** are the primary defense for "Existing PassRole" attacks and group-based self-escalation
+1. **Secrets Manager** is the only acceptable way to store credentials—never use env vars
+1. **Resource constraints on groups** prevent self-escalation via `PutGroupPolicy`—always restrict which group ARNs can be modified
 
-### The Five Defenses Summary
+### The Six Defenses Summary
 
 | Attack Category | Defense | Why It Works |
 |-----------------|---------|--------------|
-| Self-Escalation | Permissions Boundary | Caps permissions even if user modifies own policy |
+| Self-Escalation (Policy) | Permissions Boundary | Caps permissions even if user modifies own policy |
 | Principal Access | Hardened Trust Policy | Resource policy on target controls who can assume |
 | New PassRole | Condition Key | Limits which services can receive the role |
 | Existing PassRole | Resource Constraint | Limits which resources can be modified |
 | Credential Access | Secrets Manager | Secrets not visible via read permissions |
+| Self-Escalation (Group) | Resource Constraint | Limits which groups can have inline policies written |
 
 ---
 
@@ -883,6 +930,14 @@ aws iam delete-role-policy \
   --role-name iamws-app-lambda-role \
   --policy-name SecretsManagerAccess 2>/dev/null || true
 
+aws iam delete-user-policy \
+  --user-name iamws-group-admin-user \
+  --policy-name SecureGroupAdmin 2>/dev/null || true
+
+aws iam delete-role-policy \
+  --role-name iamws-group-admin-role \
+  --policy-name SecureGroupAdmin 2>/dev/null || true
+
 # Delete the boundary policy
 aws iam delete-policy \
   --policy-arn arn:aws:iam::${ACCOUNT_ID}:policy/DeveloperBoundary 2>/dev/null || true
@@ -907,7 +962,7 @@ When prompted, type `yes` to confirm.
 ## Next Steps
 
 You've completed the IAM Security Workshop! You now understand:
-- How attackers find and exploit IAM misconfigurations across all five categories
+- How attackers find and exploit IAM misconfigurations across all six vulnerability types
 - How to apply the right guardrail for each type of vulnerability
 - The principle of defense in depth in IAM
 

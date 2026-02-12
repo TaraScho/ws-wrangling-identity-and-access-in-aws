@@ -8,9 +8,9 @@ This is a 2-hour hands-on AWS IAM security workshop teaching identity and access
 
 **Workshop Structure:**
 1. Layin' Down the Law (Lecture 1): IAM fundamentals (PARC model, policy evaluation, 5 privilege escalation categories)
-2. Layin' Down the Law (Lab 1): Identify and exploit misconfigurations using awspx, pmapper, and pathfinding.cloud
-3. Fencin' the Frontier (Lecture 2): Security guardrails (permissions boundaries, trust policies, condition keys, SCPs)
-4. Fencin' the Frontier (Lab 2): Remediate and verify using guardrails (permissions boundaries, resource constraints, trust policies, condition keys)
+1. Layin' Down the Law (Lab 1): Identify and exploit misconfigurations using awspx, pmapper, and pathfinding.cloud
+1. Fencin' the Frontier (Lecture 2): Security guardrails (permissions boundaries, trust policies, condition keys, SCPs)
+1. Fencin' the Frontier (Lab 2): Remediate and verify using guardrails (permissions boundaries, resource constraints, trust policies, condition keys)
 
 ## Architecture
 
@@ -32,3 +32,7 @@ This is a 2-hour hands-on AWS IAM security workshop teaching identity and access
 ## Key Requirements
 
 After each update, ensure all markdown files in the project are updated to reflect the changes and provide accurate information. This workshop is currently in development and all collaborators need to understand the purpose of each file and whether it is intended as a final learner facing document, a reference for instructions, or resources for agentic assisted development.
+
+## Markdown Style Guide
+
+- **Ordered lists must use `1.` for every item.** Do not manually number list items (e.g., `1.`, `2.`, `3.`). Instead, use `1.` for all items and let the Markdown renderer auto-number them. This makes it easier to reorder, insert, or remove items without renumbering.

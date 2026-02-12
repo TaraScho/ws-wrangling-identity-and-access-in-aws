@@ -23,12 +23,14 @@ resource "aws_iam_policy" "iamws-ci-runner-policy" {
         # ═══════════════════════════════════════════════════════════════════
         # ROOT CAUSE: Missing condition block!
         # Without iam:PassedToService, this role can be passed to ANY service.
-        # The attacker can pass a privileged role to EC2 and harvest its credentials.
+        # PassRole is intended for Lambda deployments, but the attacker can
+        # pass a privileged role to EC2 instead and harvest its credentials.
         #
-        # THE FIX: Add this condition to restrict PassRole to specific services:
+        # THE FIX: Add this condition to restrict PassRole to Lambda (the
+        # legitimate service), which completely blocks the EC2 attack path:
         # "Condition": {
         #   "StringEquals": {
-        #     "iam:PassedToService": "ec2.amazonaws.com"
+        #     "iam:PassedToService": "lambda.amazonaws.com"
         #   }
         # }
         #
