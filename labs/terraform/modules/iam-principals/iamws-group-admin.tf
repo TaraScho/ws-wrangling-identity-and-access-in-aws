@@ -73,7 +73,6 @@ resource "aws_iam_group_membership" "iamws-dev-team-members" {
 
   users = [
     aws_iam_user.iamws-group-admin-user.name,
-    aws_iam_user.iamws-policy-developer-user.name,
   ]
 }
 

@@ -37,10 +37,7 @@ resource "aws_s3_object" "flag" {
     way past the fences and claimed the loot.
 
     This file proves you escalated from a
-    low-privilege IAM user to full admin access.
-
-    Now mosey on over to Lab 2 and learn how
-    to lock these gates for good.
+    low-privilege IAM user to full admin access. Yeehaw!
 
     ============================================
   EOF

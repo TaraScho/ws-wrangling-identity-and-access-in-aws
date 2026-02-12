@@ -18,7 +18,9 @@ This is a 2-hour hands-on AWS IAM security workshop teaching identity and access
 - `labs/` - Hands-on exercise instructions and infrastructure
   - `labs/lab-0-prerequisites/` - Prerequisites and setup instructions (tool validation, Terraform deployment)
   - `labs/lab-1-layin-down-the-law/` - Lab 1: Identifying and exploiting IAM misconfigurations
+    - `exercises/` - Individual exercise files (exercises 2–7), linked from `lab-1-instructions.md`
   - `labs/lab-2-fencin-the-frontier/` - Lab 2: Remediating IAM misconfigurations with guardrails
+    - `exercises/` - Individual exercise files (exercises 1–6), linked from `lab-2-instructions.md`
   - `labs/bonus-scenarios/` - Additional scenarios beyond the core workshop
   - `labs/FEATURES.md` - Feature roadmap tracking lab development tasks
   - `labs/wwhf-setup.sh` - Workshop setup script
