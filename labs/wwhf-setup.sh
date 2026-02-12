@@ -49,9 +49,24 @@ for cmd in git python3 unzip wget; do
   echo "  ✓ $cmd found"
 done
 
-# Docker
-if ! docker info &>/dev/null; then
-  fail "Docker is not running. Start Docker and re-run this script."
+# Passwordless sudo (needed for Docker and awspx)
+if ! sudo -n true 2>/dev/null; then
+  fail "Passwordless sudo is required. This script is designed for the workshop EC2 instance."
+fi
+echo "  ✓ sudo access"
+
+# Docker — installed?
+if ! command -v docker &>/dev/null; then
+  fail "Docker is not installed."
+fi
+# Docker — daemon running? Start if needed.
+if ! sudo docker info &>/dev/null; then
+  echo "  Docker daemon not running — starting it..."
+  sudo systemctl start docker 2>/dev/null || sudo service docker start 2>/dev/null \
+    || fail "Could not start Docker daemon."
+  sleep 2
+  sudo docker info &>/dev/null \
+    || fail "Docker daemon failed to start. Check 'sudo systemctl status docker' for details."
 fi
 echo "  ✓ Docker is running"
 
