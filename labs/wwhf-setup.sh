@@ -131,6 +131,14 @@ else
   "$TOOLS_DIR/venvs/pmapper/bin/pip" install -q principalmapper \
     || fail "Failed to install principalmapper via pip."
 
+  # Patch Python 3.10+ compatibility (upstream fix PR #139 never merged)
+  # collections.Mapping/MutableMapping moved to collections.abc in Python 3.10
+  CASE_DICT=$("$TOOLS_DIR/venvs/pmapper/bin/python" -c \
+    "import principalmapper.util.case_insensitive_dict as m; print(m.__file__)" 2>/dev/null) \
+    || CASE_DICT="$TOOLS_DIR/venvs/pmapper/lib/python*/site-packages/principalmapper/util/case_insensitive_dict.py"
+  sed -i 's/from collections import Mapping, MutableMapping, OrderedDict/from collections.abc import Mapping, MutableMapping\nfrom collections import OrderedDict/' $CASE_DICT
+  echo "  ✓ Patched collections.abc compatibility"
+
   # Create wrapper — calls venv binary directly, no source/activate needed
   cat > "$TOOLS_DIR/bin/pmapper" << WRAPPER
 #!/bin/bash
