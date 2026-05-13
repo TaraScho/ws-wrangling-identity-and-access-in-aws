@@ -10,25 +10,28 @@
 
 ### Part A: Identify with iam-recon
 
-Build or refresh your iam-recon graph:
+You already built the iam-recon graph during [lab setup](lab-setup-instructions.md) (Step 7), so every query in this section runs offline against the cached data — no rescan needed. If `ACCOUNT_ID` is not set in your current shell, set it again:
 
 ```bash
-iam-recon graph create --profile taractf
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --profile iamws-scanner-user)
 ```
 
-Run the pathfinding scan — this is the correct recon surface for this scenario:
+Re-open the pathfinding output from setup (or re-run it — the data is cached):
 
 ```bash
 iam-recon --account $ACCOUNT_ID pathfinding
 ```
 
-Look for the `[iam-001] user/iamws-policy-developer-user` entry:
+Find the `[iam-001]` entry for `iamws-policy-developer-user`:
+
 ```
 [iam-001] user/iamws-policy-developer-user (self-escalation)
     Path: iam:CreatePolicyVersion
     Perms: iam:CreatePolicyVersion
     https://www.pathfinding.cloud/paths/iam-001
 ```
+
+pathfinding.cloud path `iam-001` is the canonical write-up for this attack family. That entry is iam-recon telling you: "this user has every permission required to execute the `iam-001` self-escalation path."
 
 Confirm the specific permission directly:
 
@@ -39,11 +42,12 @@ iam-recon --account $ACCOUNT_ID argquery \
 ```
 
 Expected output:
+
 ```
 ALLOW user/iamws-policy-developer-user can call iam:CreatePolicyVersion with *
 ```
 
-**In the interactive visualization:** launch `iam-recon --account $ACCOUNT_ID visualize --interactive-viz` (port is dynamic — watch for `Interactive visualization available at: http://127.0.0.1:<port>` in the terminal). The user node is blue (no privesc edge exists for this attack family), but clicking it shows the pathfinding annotations. The viz color alone doesn't tell the full story.
+**In the interactive visualization:** launch `iam-recon --account $ACCOUNT_ID visualize --interactive-viz` (the port is dynamic — copy the `http://127.0.0.1:<port>` URL iam-recon prints). The `iamws-policy-developer-user` node is blue: iam-recon has no graph-edge checker for `iam:CreatePolicyVersion`, so this attack is only surfaced by the `pathfinding` command, not by the colored edges in the viz. Clicking the node still shows the pathfinding annotation — the viz color alone doesn't tell the full story.
 
 ### Part B: Understand the Attack
 

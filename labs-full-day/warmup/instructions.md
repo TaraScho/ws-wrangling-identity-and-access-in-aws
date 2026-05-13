@@ -1,57 +1,60 @@
-# Warmup — Confirm Your Tools Before the First Scenario
+# Warmup — Get Oriented in the Graph
 
-~20 minutes. Goal: verify your AWS credentials and iam-recon are working before any attacks.
+~5 minutes. Goal: get oriented in the IAM graph you built during setup before the first attack scenario.
 
-## Step 1: Configure your AWS CLI profile
+## Step 1: Confirm the graph is loaded
 
-Follow the setup instructions in [`lab-0-prerequisites.md`](../../labs-two-hour-workshop/lab-0-prerequisites/lab-0-prerequisites.md) to configure the AWS CLI profile for your assigned identity.
-
-## Step 2: Build the iam-recon graph
-
-Set your account ID, then run an initial scan:
+If you haven't already, set the account ID so every iam-recon query in this and later scenarios can run offline:
 
 ```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --profile taractf)
-
-iam-recon graph create --profile taractf
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --profile iamws-scanner-user)
 ```
 
-Expected output includes a node count, edge count, and admin count. You should see roughly 36 nodes, 20 edges, and 7 admins.
+Verify the graph from setup is still cached and readable:
 
-## Step 3: Open the interactive visualization
+```bash
+iam-recon --account $ACCOUNT_ID graph display
+```
+
+Expected output: a summary line with the account ID, node count (~36), edge count (~20), admin count (~7). If you see "no graph found", revisit [lab setup](../lab-setup-instructions.md#step-7-build-the-iam-graph) and re-run `iam-recon graph create --profile iamws-scanner-user`.
+
+## Step 2: Open the interactive visualization
 
 ```bash
 iam-recon --account $ACCOUNT_ID visualize --interactive-viz
 ```
 
-iam-recon will print something like:
+iam-recon prints something like:
+
 ```
 Interactive visualization available at: http://127.0.0.1:54321
 ```
 
-The port is dynamic — watch the terminal output and open the URL it prints. The browser should open automatically; if not, copy the URL manually.
+The port is dynamic — open the URL iam-recon prints (the browser should open automatically). Once it loads, you'll see a force-directed graph of every IAM principal in the account.
 
-Once open:
-- **Red nodes** = admin-tier principals (`AdministratorAccess` or equivalent)
-- **Orange nodes** = principals with a privilege escalation path
-- **Blue nodes** = regular users and roles
+Node colors:
 
-Use the **Privesc** filter to highlight only the escalation paths. You should see roughly 8 principals highlighted. Your instructor will walk through which nodes correspond to each upcoming scenario.
+- **Red** — admin-tier principals (full `*:*` access)
+- **Orange** — principals with at least one known privilege escalation path
+- **Blue** — regular users
+- **Light cyan** — regular roles
+
+## Step 3: Apply the Privesc filter
+
+In the viz toolbar, enable the **Privesc** filter. The graph should collapse to roughly 8 highlighted principals — these are every starting point for the scenarios you're about to run. Your instructor will walk through which highlighted node corresponds to which scenario.
+
+While the filter is on, click a few nodes to get a feel for the inspector panel — node properties, attached policies, group membership, and any pathfinding.cloud paths the principal is implicated in.
 
 ## Step 4: Optional — terminal dashboard
 
-If you prefer a CLI view:
+If you prefer a terminal-first view of the same data:
 
 ```bash
 iam-recon --tui --account $ACCOUNT_ID
 ```
 
-## Profile decision (TODO)
+Use the arrow keys to navigate. Press `q` to quit.
 
-The scan above uses `--profile taractf` (the admin profile used for initial graph creation). For participant workshops, the warmup profile needs a decision:
+---
 
-1. **New read-only scanner user** — create a dedicated `iamws-scanner` IAM user with `SecurityAudit` or similar. Cleanest option; requires adding a principal to the Terraform.
-1. **Sandbox admin** — have participants use an admin profile for the initial scan only, then switch to attacker profiles for each scenario. Simplest operationally.
-1. **Per-exercise user** — start with the first scenario's attacker profile (e.g., `iamws-policy-developer-user`), which only sees what that user can see. Teaching moment about visibility, but noisier for a first scan.
-
-Don't pick an option here — flag for Tara before finalizing participant-facing materials.
+You're ready for [Scenario 1a — CreatePolicyVersion](../scenario-1a-create-policy-version.md).

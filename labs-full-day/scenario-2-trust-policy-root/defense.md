@@ -1,7 +1,5 @@
 # Scenario 2 — Defense bullets (afternoon, first slot after Lecture 2, ~30 min)
 
-Source: Lab 2 Exercise 2. Pairs with `attack.md` (AssumeRole trust `:root`). Control: **hardened trust policy** (specific principal + MFA condition). **Includes Andrew's Kiro lab.**
-
 ## Slide intro bullets
 
 - Trust policies are **resource policies** on the role itself — they answer "who can assume me?"
@@ -17,7 +15,7 @@ aws iam get-role --role-name iamws-privileged-admin-role \
   --query 'Role.AssumeRolePolicyDocument' --output json
 # note: Principal.AWS = arn:aws:iam::ACCOUNT:root
 
-# Step 2: harden — replace :root with specific principal + add MFA condition
+# Step 2: harden — replace :root with specific principal 
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ADMIN_ROLE_ARN=$(aws sts get-caller-identity --query Arn --output text)
 
@@ -28,16 +26,10 @@ aws iam update-assume-role-policy \
     "Statement": [{
       "Effect": "Allow",
       "Principal": {"AWS": "'$ADMIN_ROLE_ARN'"},
-      "Action": "sts:AssumeRole",
-      "Condition": {"Bool": {"aws:MultiFactorAuthPresent": "true"}}
+      "Action": "sts:AssumeRole"
     }]
   }'
 ```
-
-## Andrew's Kiro lab (placeholder)
-
-- **TODO Andrew:** drop bullet outline + commands here.
-- Best guess at integration point: after the hardened trust policy lands, Kiro walks participants through authoring/refactoring the trust policy in Kiro (IDE? agent?) to demonstrate a defender workflow.
 
 ## Verify with the attack
 
@@ -47,7 +39,7 @@ aws sts assume-role \
   --role-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-privileged-admin-role \
   --role-session-name escalated \
   --profile iamws-role-assumer-user
-# expect: AccessDenied — principal not trusted (and no MFA)
+# expect: AccessDenied — principal not trusted
 
 # Crown jewels still safe?
 aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
