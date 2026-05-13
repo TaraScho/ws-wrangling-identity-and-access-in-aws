@@ -16,18 +16,6 @@ Drop into `Lecture-2-Fencin-the-Frontier.pptx`. Two new sections + one narrative
 - Where they fit: post-remediation verification of high-stakes changes (admin trust policies, cross-account roles).
 - TODO Tara/Andrew: name the specific provers we're recommending (Zelkova? CloudSplaining variants? AWS Access Analyzer policy validation?).
 
-## Narrative thread — "iam-recon as your verification tool"
-
-Weave through every existing defense slide:
-
-- After every remediation, the question is: *did we actually remove the privesc edge, or just the obvious one?*
-- iam-recon answers that question in two commands:
-  ```bash
-  iam-recon graph create --profile taractf
-  iam-recon --account $ACCOUNT_ID argquery --preset privesc
-  ```
-- This is the strongest pedagogical thread the new tool gives us: the same tool that *finds* the attack path *verifies* it's gone.
-- Recommended slide pattern: each defense slide gets a "Verify with iam-recon" footer showing the expected diff in `argquery --preset privesc` output.
 
 ## Suggested deck structure
 
@@ -38,8 +26,3 @@ Weave through every existing defense slide:
 5. **NEW** IAM Spy — runtime perspective
 6. **NEW** Provers — formal verification
 7. **NEW** Tying it together — iam-recon as the loop-closing verification tool
-
-## Open questions for Tara
-
-- Fold IAM Spy + provers into the existing deck or break them into a 3rd lecture?
-- Do you want the verification thread as inline footers on existing slides, or as a single capstone slide at the end?
