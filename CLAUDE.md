@@ -26,7 +26,7 @@ This is a 2-hour hands-on AWS IAM security workshop teaching identity and access
     - Modules: `cloudformation`, `ec2`, `iam-principals`, `lambda`, `s3`
 
 ### Reference Repositories (gitignored, local only)
-- `reference-repos/PMapper/` - Fork of NCC Group's PMapper (Principal Mapper) for IAM privilege escalation analysis
+- `~/repos/iam-recon` - Source code for `iam-recon` tool
 - `reference-repos/pathfinding.cloud/` - Fork of pathfinding.cloud AWS IAM privilege escalation path database. This fork is for Claude reference only; learners use the actual pathfinding.cloud website.
 
 ## Key Requirements

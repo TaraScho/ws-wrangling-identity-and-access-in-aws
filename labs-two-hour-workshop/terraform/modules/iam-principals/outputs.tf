@@ -56,3 +56,14 @@ output "ci_runner_secret_access_key" {
   value       = aws_iam_access_key.iamws-ci-runner-user.secret
   sensitive   = true
 }
+
+output "scanner_access_key_id" {
+  description = "Access key ID for iamws-scanner-user"
+  value       = aws_iam_access_key.iamws-scanner-user.id
+}
+
+output "scanner_secret_access_key" {
+  description = "Secret access key for iamws-scanner-user"
+  value       = aws_iam_access_key.iamws-scanner-user.secret
+  sensitive   = true
+}

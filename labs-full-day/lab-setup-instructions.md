@@ -17,18 +17,18 @@ The setup runs through Step 5. Steps 6–9 introduce iam-recon and tour the grap
 
 1. Find and copy your sandbox AWS credentials — you'll paste them into the workshop VM to authenticate it.
 
-   ![Find credentials button](assets/find-credentials-button.png)
+   ![Find credentials button](../labs-two-hour-workshop/lab-1-layin-down-the-law/assets/find-credentials-button.png)
 
    Click **Credentials**, then click **Copy as Shell Export** to copy them to your clipboard.
 
-   ![Copy as Shell Export button](assets/copy-aws-creds-as-shell-export.png)
+   ![Copy as Shell Export button](../labs-two-hour-workshop/lab-1-layin-down-the-law/assets/copy-aws-creds-as-shell-export.png)
 
    > **NOTE**
    > Copying and pasting in the Guacamole virtual desktop can be tricky. See [the Guacamole docs](https://guacamole.apache.org/doc/gug/using-guacamole.html) for OS-specific clipboard tips.
 
 1. Paste the credentials into the VM terminal. Your VM is now authenticated against the sandbox AWS account.
 
-   ![Pasting AWS credentials in the terminal](assets/paste-aws-creds-in-ubuntu-terminal.png)
+   ![Pasting AWS credentials in the terminal](../labs-two-hour-workshop/lab-1-layin-down-the-law/assets/paste-aws-creds-in-ubuntu-terminal.png)
 
    ```bash
    export AWS_ACCESS_KEY_ID=AKIA...

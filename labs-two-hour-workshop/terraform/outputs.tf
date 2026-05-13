@@ -38,6 +38,15 @@ output "ci_runner_secret_access_key" {
   sensitive = true
 }
 
+output "scanner_access_key_id" {
+  value = module.iam-principals.scanner_access_key_id
+}
+
+output "scanner_secret_access_key" {
+  value     = module.iam-principals.scanner_secret_access_key
+  sensitive = true
+}
+
 # lambda module outputs
 
 output "lambda_developer_access_key_id" {

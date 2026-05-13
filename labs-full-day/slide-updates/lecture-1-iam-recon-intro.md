@@ -41,9 +41,3 @@ iam-recon --account $ACCOUNT_ID visualize --interactive-viz # see them in the br
 - Every iam-recon finding links back to canonical attack-path documentation.
 - 66+ known paths bundled at build time; instructor will show clickable links in the demo.
 - Useful next step after a workshop: scan your own org's accounts and see where you land on the path catalog.
-
-## Open questions for Tara
-
-- Do we want a screenshot of the iam-recon TUI / interactive viz on Slide C? If yes, screenshots live at `~/repos/iam-recon/docs/screenshots/`.
-- Public-ness of the iam-recon repo for Slide A's URL.
-- Want to keep an "awspx Cytoscape demo" image on Slide B for visual continuity, or go text-only?

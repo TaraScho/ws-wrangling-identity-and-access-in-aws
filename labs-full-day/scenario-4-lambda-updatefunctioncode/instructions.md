@@ -145,13 +145,17 @@ aws lambda update-function-code \
 
 No error — the developer updated a function they shouldn't be able to touch.
 
-**Step 8: Invoke the function and claim the crown jewels**
+**Step 8: Invoke the function**
 
 ```bash
 aws lambda invoke --function-name iamws-privileged-lambda \
   --payload '{}' /tmp/iamws-exploit/response.json \
   --profile iamws-lambda-developer-user
+```
 
+**Step 9: Read the response**
+
+```bash
 cat /tmp/iamws-exploit/response.json | jq .
 ```
 
@@ -219,12 +223,16 @@ sleep 60
 
 ### Part E: Verify the Remediation
 
-**Step 1: Re-run the exploit as the attacker — confirm it's blocked**
+**Step 1: Create a dummy payload**
 
 ```bash
 echo "def handler(e,c): pass" > /tmp/dummy_lambda.py
 cd /tmp && zip -j /tmp/dummy_lambda.zip dummy_lambda.py && cd -
+```
 
+**Step 2: Try to update the privileged Lambda**
+
+```bash
 aws lambda update-function-code \
   --function-name iamws-privileged-lambda \
   --zip-file fileb:///tmp/dummy_lambda.zip \
@@ -238,7 +246,7 @@ User: arn:aws:iam::767397689800:user/iamws-lambda-developer-user
 is not authorized to perform: lambda:UpdateFunctionCode on resource: ...iamws-privileged-lambda
 ```
 
-**Step 2: Confirm the crown jewels are still safe**
+**Step 3: Confirm the crown jewels are still safe**
 
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text \
@@ -253,12 +261,17 @@ Expected output:
 fatal error: An error occurred (403) when calling the HeadObject operation: Forbidden
 ```
 
-**Step 3: Verify with iam-recon**
+**Step 4: Verify with iam-recon**
 
 Refresh the graph:
 
 ```bash
 iam-recon graph create --profile taractf
+```
+
+Re-run the pathfinding scan:
+
+```bash
 iam-recon --account $ACCOUNT_ID pathfinding
 ```
 
