@@ -1,0 +1,108 @@
+
+─────────────────────
+  Pathfinding.cloud
+─────────────────────
+  Database: 66 known escalation paths bundled
+
+  20 matches across 16 principals
+
+  [ssm-001] user/iamws-ci-runner-user (existing-passrole)
+    Path: ssm:StartSession
+    Perms: ssm:StartSession
+    https://www.pathfinding.cloud/paths/ssm-001
+
+  [ec2-001] user/iamws-ci-runner-user (new-passrole)
+    Path: iam:PassRole + ec2:RunInstances
+    Perms: iam:PassRole, ec2:RunInstances
+    https://www.pathfinding.cloud/paths/ec2-001
+
+  [iam-009] user/iamws-deploy-bot-user (self-escalation)
+    Path: iam:AttachRolePolicy
+    Perms: iam:AttachRolePolicy
+    https://www.pathfinding.cloud/paths/iam-009
+
+  [iam-011] user/iamws-group-admin-user (self-escalation)
+    Path: iam:PutGroupPolicy
+    Perms: iam:PutGroupPolicy
+    https://www.pathfinding.cloud/paths/iam-011
+
+  [lambda-004] user/iamws-lambda-developer-user (existing-passrole)
+    Path: lambda:UpdateFunctionCode + lambda:InvokeFunction
+    Perms: lambda:UpdateFunctionCode, lambda:InvokeFunction
+    https://www.pathfinding.cloud/paths/lambda-004
+
+  [lambda-003] user/iamws-lambda-developer-user (existing-passrole)
+    Path: lambda:UpdateFunctionCode
+    Perms: lambda:UpdateFunctionCode
+    https://www.pathfinding.cloud/paths/lambda-003
+
+  [ssm-002] user/iamws-ops-automation-user (existing-passrole)
+    Path: ssm:SendCommand
+    Perms: ssm:SendCommand
+    https://www.pathfinding.cloud/paths/ssm-002
+
+  [iam-001] user/iamws-policy-developer-user (self-escalation)
+    Path: iam:CreatePolicyVersion
+    Perms: iam:CreatePolicyVersion
+    https://www.pathfinding.cloud/paths/iam-001
+
+  [sts-001] user/iamws-role-assumer-user (principal-access)
+    Path: sts:AssumeRole
+    Perms: sts:AssumeRole
+    https://www.pathfinding.cloud/paths/sts-001
+
+  [lambda-001] user/iamws-webhook-handler-user (new-passrole)
+    Path: iam:PassRole + lambda:CreateFunction + lambda:InvokeFunction
+    Perms: iam:PassRole, lambda:CreateFunction, lambda:InvokeFunction
+    https://www.pathfinding.cloud/paths/lambda-001
+
+  [ssm-001] role/iamws-ci-runner-role (existing-passrole)
+    Path: ssm:StartSession
+    Perms: ssm:StartSession
+    https://www.pathfinding.cloud/paths/ssm-001
+
+  [ec2-001] role/iamws-ci-runner-role (new-passrole)
+    Path: iam:PassRole + ec2:RunInstances
+    Perms: iam:PassRole, ec2:RunInstances
+    https://www.pathfinding.cloud/paths/ec2-001
+
+  [iam-009] role/iamws-deploy-bot-role (self-escalation)
+    Path: iam:AttachRolePolicy
+    Perms: iam:AttachRolePolicy
+    https://www.pathfinding.cloud/paths/iam-009
+
+  [iam-011] role/iamws-group-admin-role (self-escalation)
+    Path: iam:PutGroupPolicy
+    Perms: iam:PutGroupPolicy
+    https://www.pathfinding.cloud/paths/iam-011
+
+  [lambda-004] role/iamws-lambda-developer-role (existing-passrole)
+    Path: lambda:UpdateFunctionCode + lambda:InvokeFunction
+    Perms: lambda:UpdateFunctionCode, lambda:InvokeFunction
+    https://www.pathfinding.cloud/paths/lambda-004
+
+  [lambda-003] role/iamws-lambda-developer-role (existing-passrole)
+    Path: lambda:UpdateFunctionCode
+    Perms: lambda:UpdateFunctionCode
+    https://www.pathfinding.cloud/paths/lambda-003
+
+  [ssm-002] role/iamws-ops-automation-role (existing-passrole)
+    Path: ssm:SendCommand
+    Perms: ssm:SendCommand
+    https://www.pathfinding.cloud/paths/ssm-002
+
+  [iam-001] role/iamws-policy-developer-role (self-escalation)
+    Path: iam:CreatePolicyVersion
+    Perms: iam:CreatePolicyVersion
+    https://www.pathfinding.cloud/paths/iam-001
+
+  [sts-001] role/iamws-role-assumer-role (principal-access)
+    Path: sts:AssumeRole
+    Perms: sts:AssumeRole
+    https://www.pathfinding.cloud/paths/sts-001
+
+  [lambda-001] role/iamws-webhook-handler-role (new-passrole)
+    Path: iam:PassRole + lambda:CreateFunction + lambda:InvokeFunction
+    Perms: iam:PassRole, lambda:CreateFunction, lambda:InvokeFunction
+    https://www.pathfinding.cloud/paths/lambda-001
+
