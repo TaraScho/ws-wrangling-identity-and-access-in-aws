@@ -10,7 +10,7 @@
 
 ### Part A: Identify with iam-recon
 
-You already built the iam-recon graph during [lab setup](lab-setup-instructions.md) (Step 7), so every query in this section runs offline against the cached data — no rescan needed. If `ACCOUNT_ID` is not set in your current shell, set it again:
+You already built the iam-recon graph during [lab setup](lab-setup-instructions.md) (Step 8), so every query in this section runs offline against the cached data — no rescan needed. If `ACCOUNT_ID` is not set in your current shell, set it again:
 
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --profile iamws-scanner-user)

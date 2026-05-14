@@ -360,10 +360,6 @@ Reflect on the lab and discuss the following with your group or instructor.
 - Permissions boundaries provide a safety net: even if someone attaches a broad policy, the boundary limits what the role can actually do.
 - AWS MCP servers catch common IAM mistakes automatically, but human review and simulation testing remain essential.
 
-## Cleanup
-
-See [`cleanup.md`](cleanup.md) — three CloudFormation stacks to delete.
-
 ## Resources
 
 - [Kiro IDE](https://kiro.dev/) — download and documentation

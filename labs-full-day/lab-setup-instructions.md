@@ -2,38 +2,64 @@
 
 ## Overview
 
-Before the first attack scenario, you'll set up your workshop VM, deploy the vulnerable lab infrastructure, and build an IAM recon graph that every scenario in the workshop will query. By the end of this setup you will have:
+Before the first attack scenario you'll set up your workstation, deploy the vulnerable lab infrastructure into your own AWS sandbox, and build the IAM recon graph that every scenario in the workshop will query. By the end of this setup you will have:
 
-- An authenticated VM in a sandbox AWS account
-- Six intentionally-vulnerable IAM users plus a least-privilege `iamws-scanner-user` for read-only recon
+- A workstation (workshop lab VM **or** your own Mac/Linux laptop) with every workshop dependency installed
+- Six intentionally-vulnerable IAM users plus a least-privilege `iamws-scanner-user` for read-only recon, all deployed into your AWS sandbox
 - An [`iam-recon`](https://github.com/yourorg/iam-recon) graph of the account, ready to query offline
 - A working mental model of the five privilege escalation categories used by [pathfinding.cloud](https://pathfinding.cloud)
-
-The setup runs through Step 5. Steps 6–9 introduce iam-recon and tour the graph.
+- A short tour of the graph so you know where every scenario starts before we begin Scenario 1a
 
 ---
 
-## Step 1: Access the VM
+## Before you begin — bring your own AWS sandbox
 
-1. Find and copy your sandbox AWS credentials — you'll paste them into the workshop VM to authenticate it.
+This workshop intentionally deploys vulnerable IAM resources. You need an AWS account that is **strictly a sandbox** — never use a production account, never use an account that hosts anything you care about.
 
-   ![Find credentials button](../labs-two-hour-workshop/lab-1-layin-down-the-law/assets/find-credentials-button.png)
+In that sandbox account you'll need an IAM identity (user or role) with permission to create:
 
-   Click **Credentials**, then click **Copy as Shell Export** to copy them to your clipboard.
+- IAM users, roles, policies, and access keys
+- Lambda functions
+- EC2 instances and security groups
+- S3 buckets
+- CloudFormation stacks
+- Secrets Manager secrets
 
-   ![Copy as Shell Export button](../labs-two-hour-workshop/lab-1-layin-down-the-law/assets/copy-aws-creds-as-shell-export.png)
+`ReadOnlyAccess` plus the create permissions above is sufficient. An admin identity in a sandbox account also works.
 
-   > **NOTE**
-   > Copying and pasting in the Guacamole virtual desktop can be tricky. See [the Guacamole docs](https://guacamole.apache.org/doc/gug/using-guacamole.html) for OS-specific clipboard tips.
+> [!IMPORTANT]
+> Never deploy the lab into a production AWS account. The Terraform that runs in Step 4 creates IAM users with deliberately exploitable permissions. Use a dedicated sandbox.
 
-1. Paste the credentials into the VM terminal. Your VM is now authenticated against the sandbox AWS account.
+> [!NOTE]
+> Need a sandbox? Setting one up is out of scope for this workshop — allow ~30 minutes before the session if you're starting from scratch. AWS's [free-tier sign-up](https://aws.amazon.com/free) is one way to get a dedicated account.
 
-   ![Pasting AWS credentials in the terminal](../labs-two-hour-workshop/lab-1-layin-down-the-law/assets/paste-aws-creds-in-ubuntu-terminal.png)
+---
+
+## Step 1: Set up your workstation
+
+You can run the labs on the provided workshop VM **or** on your own Mac/Linux laptop. Both paths use the same setup script in Step 4.
+
+1. **Workshop lab VM (recommended).** Your instructor will hand out a Guacamole URL and login. Every workshop dependency (AWS CLI v2, Terraform, `iam-recon`, the SSM Session Manager plugin) is pre-installed. Skip ahead to Step 2.
+
+1. **Your own Mac or Linux laptop.** Make sure [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) is installed (`aws --version` should print v2.x). The setup script in Step 4 will install everything else if it's missing — see [what the script installs](#what-the-script-installs) below.
+
+> [!WARNING]
+> **Windows is not supported.** `iam-recon` only ships Linux and macOS binaries today. If you're on a Windows laptop, use the workshop lab VM instead.
+
+---
+
+## Step 2: Authenticate to your sandbox account in the terminal
+
+Whether you're on the lab VM or your own laptop, you need an authenticated terminal session against **your own sandbox account** before running the setup script.
+
+1. Generate or retrieve credentials for the IAM identity you described in [Before you begin](#before-you-begin--bring-your-own-aws-sandbox). The [AWS CLI authentication docs](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-authentication.html) walk through every supported method (IAM Identity Center, long-lived access keys, AssumeRole, etc.) — pick whichever your sandbox uses.
+
+1. Export the credentials in your terminal:
 
    ```bash
    export AWS_ACCESS_KEY_ID=AKIA...
    export AWS_SECRET_ACCESS_KEY=...
-   export AWS_SESSION_TOKEN=...
+   export AWS_SESSION_TOKEN=...   # only if you're using temporary credentials
    ```
 
 1. Verify:
@@ -42,19 +68,14 @@ The setup runs through Step 5. Steps 6–9 introduce iam-recon and tour the grap
    aws sts get-caller-identity
    ```
 
-   Expected output:
+   The returned `Arn` should match the IAM identity in your sandbox account.
 
-   ```
-   {
-       "UserId": "<your user id>",
-       "Account": "<your account id>",
-       "Arn": "<your identity arn>"
-   }
-   ```
+> [!TIP]
+> **On the lab VM (Guacamole):** copying and pasting can be tricky. See the [Guacamole clipboard docs](https://guacamole.apache.org/doc/gug/using-guacamole.html) for OS-specific tips.
 
 ---
 
-## Step 2: Clone the Workshop Repository
+## Step 3: Clone the workshop repository
 
 ```bash
 git clone https://github.com/TaraScho/ws-wrangling-identity-and-access-in-aws.git ~/workshop
@@ -63,19 +84,20 @@ cd ~/workshop
 
 ---
 
-## Step 3: Run the Setup Script
+## Step 4: Run the setup script
 
 ```bash
 bash labs-full-day/bsides-setup.sh
 ```
 
-The full-day setup script:
+The script:
 
-1. Verifies prerequisites (AWS credentials, `iam-recon`, Terraform)
-1. Deploys the vulnerable lab infrastructure with Terraform
-1. Configures AWS CLI profiles for **seven** users: the six intentionally-vulnerable exercise users (one per scenario) plus `iamws-scanner-user` — a least-privilege read-only identity used for IAM reconnaissance
+1. Verifies prerequisites (AWS credentials, base Unix tools)
+1. Installs any missing workshop dependencies (see [what the script installs](#what-the-script-installs))
+1. Runs `terraform apply` to deploy the vulnerable lab infrastructure into your sandbox account
+1. Configures AWS CLI profiles for **seven** users — the six intentionally-vulnerable scenario users plus `iamws-scanner-user`, a least-privilege read-only identity used for IAM reconnaissance
 
-When the script finishes you'll see:
+When every check passes you'll see a banner like:
 
 ```
 === Setup Complete! (6/6 checks passed) ===
@@ -83,11 +105,25 @@ When the script finishes you'll see:
 You're ready to start the workshop. Happy hacking!
 ```
 
+(The exact count depends on your environment — own-laptop runs skip the persistent-default-profile check that's only needed on the lab VM.)
+
+### What the script installs
+
+The script only installs a tool if it isn't already on your `PATH`. On the lab VM everything is pre-installed, so this step is effectively a no-op verification. On your own laptop, expect any of the following to be installed if missing:
+
+| Tool                        | Source                                                                                  | Why                                                                       |
+|-----------------------------|-----------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| Terraform                   | [HashiCorp releases](https://releases.hashicorp.com/terraform/)                         | Deploys the vulnerable lab infrastructure                                 |
+| `iam-recon`                 | [iam-recon releases](https://github.com/yourorg/iam-recon/releases)                     | Builds the IAM graph used by every scenario                               |
+| SSM Session Manager plugin  | [AWS S3](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) | Lets `aws ssm start-session` connect to the lab EC2 instance in Scenario 3 |
+
+You can re-run the script safely — every install step is idempotent.
+
 ---
 
-## Step 4: Reload Your Shell
+## Step 5: Reload your shell
 
-The setup script added tools to your PATH, but your current terminal session needs to reload it:
+The setup script added the workshop tools directory to your `PATH`. Reload your current shell so the new entries take effect:
 
 ```bash
 source ~/.bashrc
@@ -95,7 +131,7 @@ source ~/.bashrc
 
 ---
 
-## Step 5: Privilege Escalation Categories
+## Step 6: Privilege escalation categories
 
 Before you start identifying vulnerabilities, get familiar with how the security community organizes privilege escalation attacks. Throughout this workshop we'll reference [pathfinding.cloud](https://pathfinding.cloud), an open source knowledge base for understanding, detecting, and demonstrating AWS IAM privilege escalation.
 
@@ -113,22 +149,22 @@ Before you start identifying vulnerabilities, get familiar with how the security
    | **Existing PassRole** | Modify an existing resource with an attached role and gain access to that role             |
    | **Credential Access** | Access hardcoded credentials stored insecurely                                             |
 
-   You'll exploit vulnerabilities from each of these categories during the workshop. Click into a few paths now to see how each one is described — every iam-recon finding you'll see in Step 7 links back to one of these paths.
+   You'll exploit vulnerabilities from each of these categories during the workshop. Click into a few paths now to see how each one is described — every iam-recon finding you'll see in Step 8 links back to one of these paths.
 
 ---
 
-## Step 6: Meet `iam-recon`
+## Step 7: Meet `iam-recon`
 
 `iam-recon` is a single-binary Rust tool that builds a directed graph of every IAM user, role, group, and policy in an AWS account, then maps the resulting privileges to the 66+ known attack paths catalogued by pathfinding.cloud. It is the only recon tool used in the full-day workshop — it consolidates the capabilities of the older Python tools you may have seen (PMapper, awspx) into one binary, plus first-class pathfinding.cloud integration.
 
 What you can do with it:
 
-- Build an offline graph of an AWS account in one command, then query it forever without re-hitting the AWS API.
-- Identify principals that have known privilege escalation paths (`pathfinding`, `argquery --preset privesc`).
-- Confirm individual permissions against simulated policy evaluation (`argquery --principal <name> --action <action>`).
-- Explore the graph visually in a browser (`visualize --interactive-viz`) or in a terminal dashboard (`--tui`).
+- Build an offline graph of an AWS account in one command, then query it forever without re-hitting the AWS API
+- Identify principals that have known privilege escalation paths (`pathfinding`, `argquery --preset privesc`)
+- Confirm individual permissions against simulated policy evaluation (`argquery --principal <name> --action <action>`)
+- Explore the graph visually in a browser (`visualize --interactive-viz`) or in a terminal dashboard (`--tui`)
 
-`iam-recon` is pre-installed on the workshop VM — no install step needed. Confirm it's there:
+Confirm it's on your `PATH`:
 
 ```bash
 iam-recon --help | head -5
@@ -136,7 +172,7 @@ iam-recon --help | head -5
 
 ---
 
-## Step 7: Build the IAM graph
+## Step 8: Build the IAM graph
 
 Set the account ID once so you can reuse it for every iam-recon query in this and later steps:
 
@@ -167,8 +203,8 @@ Graph Data for Account:  <account ID>
 # of Admins:             ~7
 ```
 
-> **Why a dedicated scanner profile?**
-> `iamws-scanner-user` is attached to the AWS-managed `SecurityAudit` policy — read-only access to IAM and every service iam-recon enumerates. Recon is a read-only activity; doing it with a least-privilege identity (instead of an admin profile) is the same principle you'll defend against attackers in Lab 2. Every other workshop scenario uses a scenario-specific exercise profile (e.g., `iamws-policy-developer-user`) for exploitation — never the scanner.
+> [!NOTE]
+> **Why a dedicated scanner profile?** `iamws-scanner-user` is attached to the AWS-managed `SecurityAudit` policy — read-only access to IAM and every service iam-recon enumerates. Recon is a read-only activity; doing it with a least-privilege identity (instead of an admin profile) is the same principle you'll defend against attackers in Lab 2. Every other workshop scenario uses a scenario-specific exercise profile (e.g., `iamws-policy-developer-user`) for exploitation — never the scanner.
 
 You can re-display this summary at any time without rescanning:
 
@@ -178,11 +214,11 @@ iam-recon --account $ACCOUNT_ID graph display
 
 ---
 
-## Step 8: Tour the data
+## Step 9: Tour the data
 
-The three commands below are the iam-recon surfaces you'll use across the rest of the workshop. Run them now so you know what each one looks like.
+The three commands below are the iam-recon surfaces you'll use across the rest of the workshop. Run them now so you know what each one looks like — and so you finish setup oriented in the graph that every scenario will reference.
 
-### 8a. Map permissions to known attack paths (`pathfinding`)
+### 9a. Map permissions to known attack paths (`pathfinding`)
 
 ```bash
 iam-recon --account $ACCOUNT_ID pathfinding
@@ -199,7 +235,7 @@ This is the primary recon command — it walks every principal against the bundl
 
 The bracketed ID (`iam-001`) is the pathfinding.cloud path identifier — every scenario in this workshop will point you at one or more of these IDs and ask you to find them in this output.
 
-### 8b. Visualize the graph (`visualize --interactive-viz`)
+### 9b. Visualize the graph (`visualize --interactive-viz`)
 
 ```bash
 iam-recon --account $ACCOUNT_ID visualize --interactive-viz
@@ -212,11 +248,13 @@ iam-recon prints a line like `Interactive visualization available at: http://127
 - **Blue nodes** — regular users
 - **Light cyan nodes** — regular roles
 
-Click a node to inspect its policies and trust relationships. Click an edge to see the policy document that created it (e.g., the inline policy granting `iam:PassRole`). Use the **Privesc** filter to hide everything except the escalation paths.
+Click a node to inspect its policies and trust relationships. Click an edge to see the policy document that created it (e.g., the inline policy granting `iam:PassRole`).
+
+Now enable the **Privesc** filter in the viz toolbar. The graph should collapse to roughly 8 highlighted principals — **these are the starting points for the scenarios you're about to run.** Your instructor will walk through which highlighted node corresponds to which scenario. Click a few of them to get a feel for the inspector panel — node properties, attached policies, group membership, and the pathfinding.cloud paths each principal is implicated in.
 
 Press `Ctrl+C` in the terminal when you're done — the visualization keeps running until you stop it.
 
-### 8c. Check a specific permission (`argquery`)
+### 9c. Check a specific permission (`argquery`)
 
 ```bash
 iam-recon --account $ACCOUNT_ID argquery \
@@ -234,9 +272,9 @@ ALLOW user/iamws-policy-developer-user can call iam:CreatePolicyVersion with *
 
 ---
 
-## Step 9: Optional — Terminal dashboard
+## Step 10: Optional — Terminal dashboard
 
-If you prefer a CLI-first view, iam-recon ships a TUI that wraps all of the above:
+If you prefer a CLI-first view, iam-recon ships a TUI that wraps everything in Step 9:
 
 ```bash
 iam-recon --tui --account $ACCOUNT_ID
@@ -246,6 +284,6 @@ Navigate with the arrow keys. Press `q` to quit. The TUI is purely a viewing too
 
 ---
 
-## What's next
+## You're ready for Scenario 1a
 
-You're ready for the warmup and the attack scenarios. See [`README.md`](README.md) for the day's running order; the warmup will pick up where this setup leaves off and get you oriented in the graph you just built.
+You have an authenticated workstation, the lab infrastructure deployed into your sandbox, the IAM graph built and toured, and a mental map of where each scenario starts. Continue to [Scenario 1a — CreatePolicyVersion](scenario-1a-create-policy-version.md).

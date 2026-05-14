@@ -235,10 +235,6 @@ Expected output: `DENY user/iamws-secrets-reader-user cannot call secretsmanager
 - iam-recon has no env-var or credential exposure detector — `argquery` on the specific read action is the only iam-recon surface for this scenario.
 - The Secrets Manager `Resource` ARN should end with `*` to handle the random suffix Secrets Manager appends.
 
-### Cleanup
-
-See [`cleanup.md`](cleanup.md) for revert steps before moving to the next scenario.
-
 ---
 
 **Next:** [Optional Scenario: PutGroupPolicy](../scenario-optional-putgrouppolicy/instructions.md) — Self-escalation via group policy manipulation

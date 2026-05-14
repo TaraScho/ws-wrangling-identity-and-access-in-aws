@@ -311,10 +311,6 @@ DENY user/iamws-lambda-developer-user cannot call lambda:UpdateFunctionCode with
 - AWS IAM has a short-lived permission cache (~3–5 minutes) for Lambda — wait before verifying live, or use `simulate-principal-policy` for immediate offline confirmation.
 - iam-recon's `argquery --preset privesc` does not catch this attack family. Pathfinding is the correct discovery and verification surface.
 
-### Cleanup
-
-See [`cleanup.md`](cleanup.md) for revert steps before moving to the next scenario.
-
 ---
 
 **Next:** [Scenario 5: Lambda Secrets](../scenario-5-lambda-secrets/instructions.md) — Credential access via Lambda environment variables

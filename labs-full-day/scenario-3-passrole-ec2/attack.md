@@ -64,7 +64,7 @@ aws ssm describe-instance-information \
 # Step 6: SSM session into the instance, claim crown jewels
 # This step is INTERACTIVE — `aws ssm start-session` opens a tty. Run it from a real terminal,
 # not from a non-interactive shell / CI runner. Validation harnesses should use
-# `aws ssm send-command` as iamws-lab-default instead (see cleanup.md).
+# `aws ssm send-command` as iamws-lab-default instead.
 aws ssm start-session --target $INSTANCE_ID \
   --profile iamws-ci-runner-user
 
