@@ -1,6 +1,6 @@
 # Scenario 5 — Cleanup
 
-Run as `taractf` (admin) after the defense demo, before the next scenario.
+Run as `iamws-lab-default` (admin) after the defense demo, before the next scenario.
 
 ## Restore the original plaintext environment variables
 
@@ -14,7 +14,7 @@ aws lambda update-function-configuration \
     "API_KEY": "sk-prod-api-key-do-not-expose",
     "ADMIN_CREDENTIALS": "admin:P@ssw0rd!"
   }}' \
-  --profile taractf
+  --profile iamws-lab-default
 ```
 
 ## Remove the secret and role policy
@@ -23,12 +23,12 @@ aws lambda update-function-configuration \
 aws iam delete-role-policy \
   --role-name iamws-app-lambda-role \
   --policy-name SecretsManagerAccess \
-  --profile taractf
+  --profile iamws-lab-default
 
 aws secretsmanager delete-secret \
   --secret-id iamws-app-secrets \
   --force-delete-without-recovery \
-  --profile taractf
+  --profile iamws-lab-default
 ```
 
 ## Confirm clean state
@@ -38,11 +38,11 @@ Verify the plaintext secrets are back in the env vars:
 ```bash
 aws lambda get-function-configuration \
   --function-name iamws-app-with-secrets \
-  --query 'Environment.Variables' --output json --profile taractf
+  --query 'Environment.Variables' --output json --profile iamws-lab-default
 # expect: the 5 plaintext key/value pairs
 
 aws iam list-role-policies \
   --role-name iamws-app-lambda-role \
-  --query 'PolicyNames' --output text --profile taractf
+  --query 'PolicyNames' --output text --profile iamws-lab-default
 # expect: (empty — SecretsManagerAccess removed)
 ```

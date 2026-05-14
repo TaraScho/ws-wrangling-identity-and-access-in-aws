@@ -10,19 +10,15 @@
 
 ### Part A: Identify with iam-recon
 
-Run the privilege escalation preset to surface suspicious STS edges:
+Run the privilege escalation preset scoped to this scenario's principal to surface the suspicious STS edge:
 
 ```bash
-iam-recon --account $ACCOUNT_ID argquery --preset privesc
+iam-recon --account $ACCOUNT_ID argquery --preset privesc --principal user/iamws-role-assumer-user
 ```
 
-Expected output (relevant excerpt):
+Expected output:
 ```
-──────────────────────────────
-  Privilege Escalation Paths
-──────────────────────────────
-
-  >>> user/iamws-role-assumer-user can escalate to admin:
+  user/iamws-role-assumer-user can escalate to admin:
     user/iamws-role-assumer-user -> STS role/iamws-privileged-admin-role
 ```
 
@@ -265,13 +261,18 @@ Refresh the `iam-recon` graph.
 iam-recon graph create --profile iamws-lab-default
 ```
 
-Re-run the privesc preset.
+Re-run the privesc preset scoped to this principal.
 
 ```bash
-iam-recon --account $ACCOUNT_ID argquery --preset privesc
+iam-recon --account $ACCOUNT_ID argquery --preset privesc --principal user/iamws-role-assumer-user
 ```
 
-The `user/iamws-role-assumer-user -> STS role/iamws-privileged-admin-role` line is gone. The graph drops from 20 edges to 18. `argquery --preset privesc` is the correct verification surface here — its STS edge checker evaluates trust policies.
+Expected output:
+```
+  user/iamws-role-assumer-user cannot escalate to admin.
+```
+
+The STS edge to `iamws-privileged-admin-role` is gone. `argquery --preset privesc` is the correct verification surface here — its STS edge checker evaluates trust policies.
 
 > [!NOTE]
 > Running `argquery --principal user/iamws-role-assumer-user --action sts:AssumeRole --resource <role-arn>` will still return `ALLOW` after the defense. iam-recon's per-action query only checks the caller's identity policy, not the role's trust policy. AWS `simulate-principal-policy` has the same limitation by design. The live `aws sts assume-role` attempt and the disappearance of the STS edge in `argquery --preset privesc` are the two authoritative verifications.

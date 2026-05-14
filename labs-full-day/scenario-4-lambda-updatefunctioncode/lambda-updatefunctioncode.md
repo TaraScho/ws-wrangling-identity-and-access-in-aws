@@ -4,34 +4,37 @@
 **Starting Identity:** `iamws-lambda-developer-user`
 **Target:** Crown jewels via hijacking `iamws-privileged-lambda` (execution role: `iamws-privileged-lambda-role` with `AdministratorAccess`)
 
-**The Vulnerability:** `iamws-lambda-developer-user` can update the code of ANY Lambda function — including `iamws-privileged-lambda`, which runs as an admin-tier execution role. By replacing the function code with a malicious payload, the developer's code executes as `AdministratorAccess` without ever directly assuming the role.
+**The Vulnerability:** `iamws-lambda-developer-user` can update the code of ANY Lambda function — including `iamws-privileged-lambda`, which runs with a dangerously permissive IAM role with `AdministratorAccess` permissions. By replacing the function code with a malicious payload, the developer's code executes with `AdministratorAccess` permissions in AWS via the lambda function.
 
-**Real-world scenario:** A developer can deploy code to Lambda functions but shouldn't be able to access production resources. If they can modify ANY Lambda (not just their own dev functions), they can target Lambdas with privileged execution roles and read credentials, exfiltrate data, or pivot to other services.
+**Real-world scenario:** A developer has `lambda:UpdateFunctionCode` scoped to `Resource: "*"` — the kind of overly-broad policy that came out of ChatGPT a couple years ago and never got tightened. Every Lambda in the account runs with its own execution role attached, and some of those roles are far more privileged than the developer's own permissions — an admin-tier automation Lambda, a secrets rotator, a backup job. Overwriting the code of one of those functions lets the developer's code run with that function's role, turning a wildcard write permission on Lambda into whatever the most-privileged Lambda in the account can do.
 
 ### Part A: Identify with iam-recon
 
 Build or refresh your iam-recon graph:
 
 ```bash
-iam-recon graph create --profile taractf
+iam-recon graph create --profile iamws-lab-default
 ```
 
-Run the pathfinding scan — this is the correct recon surface for this scenario:
+Run the pathfinding scan scoped to this scenario's principal:
 
 ```bash
-iam-recon --account $ACCOUNT_ID pathfinding
+iam-recon --account $ACCOUNT_ID pathfinding --principal user/iamws-lambda-developer-user
 ```
 
-Look for the `[lambda-003]` and `[lambda-004]` entries:
+Expected output:
 ```
-[lambda-004] user/iamws-lambda-developer-user (existing-passrole)
-    Path: lambda:UpdateFunctionCode + lambda:InvokeFunction
-    Perms: lambda:UpdateFunctionCode, lambda:InvokeFunction
+Pathfinding.cloud
+  Database: N known escalation paths bundled
+
+  user/iamws-lambda-developer-user — 2 paths matched:
+
+  [lambda-004] UpdateFunctionCode + InvokeFunction (existing-passrole)
+    Permissions: lambda:UpdateFunctionCode, lambda:InvokeFunction
     https://www.pathfinding.cloud/paths/lambda-004
 
-[lambda-003] user/iamws-lambda-developer-user (existing-passrole)
-    Path: lambda:UpdateFunctionCode
-    Perms: lambda:UpdateFunctionCode
+  [lambda-003] UpdateFunctionCode (existing-passrole)
+    Permissions: lambda:UpdateFunctionCode
     https://www.pathfinding.cloud/paths/lambda-003
 ```
 
@@ -266,16 +269,21 @@ fatal error: An error occurred (403) when calling the HeadObject operation: Forb
 Refresh the graph:
 
 ```bash
-iam-recon graph create --profile taractf
+iam-recon graph create --profile iamws-lab-default
 ```
 
-Re-run the pathfinding scan:
+Re-run the pathfinding scan scoped to this principal:
 
 ```bash
-iam-recon --account $ACCOUNT_ID pathfinding
+iam-recon --account $ACCOUNT_ID pathfinding --principal user/iamws-lambda-developer-user
 ```
 
-The `[lambda-003]` and `[lambda-004]` entries for `user/iamws-lambda-developer-user` are gone.
+Expected output:
+```
+  user/iamws-lambda-developer-user — no known paths matched.
+```
+
+The `[lambda-003]` and `[lambda-004]` entries are gone.
 
 Confirm the specific action is denied on the privileged function:
 

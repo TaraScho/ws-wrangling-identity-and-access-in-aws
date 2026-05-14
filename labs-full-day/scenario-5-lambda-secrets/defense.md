@@ -79,7 +79,7 @@ aws secretsmanager get-secret-value \
 
 ## Verify with iam-recon
 
-- `iam-recon graph create --profile taractf`.
+- `iam-recon graph create --profile iamws-lab-default`.
 - ⚠️ `iam-recon --account $ACCOUNT_ID analysis` never flagged the env-var disclosure in the first place (no detector — see attack.md note), so there's nothing to disappear here. Use the AWS CLI step (`get-function-configuration` returns a pointer instead of plaintext secrets) as the canonical "before/after" demo.
 - `iam-recon --account $ACCOUNT_ID argquery --principal role/iamws-app-lambda-role --action secretsmanager:GetSecretValue --resource 'arn:aws:secretsmanager:us-east-1:'${ACCOUNT_ID}':secret:iamws-app-secrets-<suffix>'` → ALLOW for the Lambda execution role only (use the actual secret ARN — Secrets Manager appends a random suffix). Without `--resource`, argquery against `*` returns DENY because the policy is scoped.
 - `iam-recon --account $ACCOUNT_ID argquery --principal user/iamws-secrets-reader-user --action secretsmanager:GetSecretValue` → DENY for the attacker (no Secrets Manager permission was ever granted).

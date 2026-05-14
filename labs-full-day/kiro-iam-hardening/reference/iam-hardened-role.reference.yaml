@@ -1,0 +1,150 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Reference hardened EC2 instance role for the Kiro IAM Hardening lab.
+  Satisfies REQ-001 through REQ-009 from the spec. Used as an instructor
+  reference and a fallback for blocked learners. NOT to be copied into
+  the Kiro project working directory.
+
+Parameters:
+  AnalyticsBucketName:
+    Type: String
+    Description: Name of the analytics data bucket created by analytics-bucket.yaml
+    Default: ''
+  ReportsPrefix:
+    Type: String
+    Default: reports/
+    Description: S3 prefix the role is allowed to list
+
+Conditions:
+  HasBucketName: !Not [!Equals [!Ref AnalyticsBucketName, '']]
+
+Resources:
+  AnalyticsBoundary:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: AnalyticsAppBoundary
+      Description: Permissions boundary denying IAM and Organizations actions
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowEverythingElse
+            Effect: Allow
+            Action: '*'
+            Resource: '*'
+          - Sid: DenyIamAndOrgs
+            Effect: Deny
+            Action:
+              - 'iam:*'
+              - 'organizations:*'
+            Resource: '*'
+          - Sid: DenyCrossAccountAssumeRole
+            Effect: Deny
+            Action: 'sts:AssumeRole'
+            Resource: '*'
+            Condition:
+              StringNotEquals:
+                'aws:ResourceAccount': !Ref 'AWS::AccountId'
+
+  AnalyticsInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AnalyticsAppRole-Secure
+      PermissionsBoundary: !Ref AnalyticsBoundary
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AnalyticsLeastPrivilege
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: S3GetObjectReports
+                Effect: Allow
+                Action: s3:GetObject
+                Resource:
+                  - !If
+                    - HasBucketName
+                    - !Sub 'arn:aws:s3:::${AnalyticsBucketName}/${ReportsPrefix}*'
+                    - !Sub 'arn:aws:s3:::analytics-data-${AWS::AccountId}/${ReportsPrefix}*'
+                Condition:
+                  Bool:
+                    'aws:SecureTransport': 'true'
+
+              - Sid: S3ListReportsPrefix
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource:
+                  - !If
+                    - HasBucketName
+                    - !Sub 'arn:aws:s3:::${AnalyticsBucketName}'
+                    - !Sub 'arn:aws:s3:::analytics-data-${AWS::AccountId}'
+                Condition:
+                  Bool:
+                    'aws:SecureTransport': 'true'
+                  StringLike:
+                    's3:prefix':
+                      - !Ref ReportsPrefix
+                      - !Sub '${ReportsPrefix}*'
+
+              - Sid: CloudWatchLogsAppGroups
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource:
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/app/analytics/*'
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/app/analytics/*:*'
+
+              - Sid: Ec2DescribeCurrentRegion
+                Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                  - ec2:DescribeInstanceStatus
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    'aws:RequestedRegion': !Ref 'AWS::Region'
+
+              - Sid: SsmSessionManager
+                Effect: Allow
+                Action:
+                  - ssm:UpdateInstanceInformation
+                  - ssmmessages:CreateControlChannel
+                  - ssmmessages:CreateDataChannel
+                  - ssmmessages:OpenControlChannel
+                  - ssmmessages:OpenDataChannel
+                  - ec2messages:AcknowledgeMessage
+                  - ec2messages:DeleteMessage
+                  - ec2messages:FailMessage
+                  - ec2messages:GetEndpoint
+                  - ec2messages:GetMessages
+                  - ec2messages:SendReply
+                Resource: '*'
+      Tags:
+        - Key: Environment
+          Value: Training
+        - Key: Lab
+          Value: KiroIAMHardening
+
+  AnalyticsInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: AnalyticsAppProfile-Secure
+      Roles:
+        - !Ref AnalyticsInstanceRole
+
+Outputs:
+  RoleArn:
+    Description: ARN of the hardened analytics role
+    Value: !GetAtt AnalyticsInstanceRole.Arn
+  RoleName:
+    Description: Name of the hardened analytics role
+    Value: !Ref AnalyticsInstanceRole
+  BoundaryArn:
+    Description: ARN of the permissions boundary
+    Value: !Ref AnalyticsBoundary

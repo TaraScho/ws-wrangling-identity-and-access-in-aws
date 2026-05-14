@@ -1,0 +1,180 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Analytics data bucket for the Kiro IAM Hardening lab. Creates
+  analytics-data-<account-id> with a TLS-only bucket policy and seeds
+  reports/quarterly.txt with the lab's easter-egg content.
+
+Resources:
+  AnalyticsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub analytics-data-${AWS::AccountId}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Environment
+          Value: Training
+        - Key: Lab
+          Value: KiroIAMHardening
+
+  AnalyticsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref AnalyticsBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt AnalyticsBucket.Arn
+              - !Sub '${AnalyticsBucket.Arn}/*'
+            Condition:
+              Bool:
+                'aws:SecureTransport': 'false'
+
+  SeederRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SeederBucketWrite
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: !Sub '${AnalyticsBucket.Arn}/*'
+      Tags:
+        - Key: Environment
+          Value: Training
+        - Key: Lab
+          Value: KiroIAMHardening
+
+  SeederFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.12
+      Handler: index.handler
+      Timeout: 60
+      Role: !GetAtt SeederRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import urllib.request
+          import boto3
+
+          s3 = boto3.client('s3')
+
+          EASTER_EGG = """
+                       _.--.
+                  _.-'_:-'||
+              _.-'_.-::::'||
+          _.-:'_.-::::::'  ||
+          .'`-.-:::::::'      ||
+          /.'`;|:::::::'      ||_
+          ||   ||::::::'    _.;._'-._
+          ||   ||:::::'  _.-!oo @.!-._'-.
+          \\'.  ||:::::.-!()oo @!()@.-'_.|
+           '.'-;|:.-'.&$@.& ()$%-'o.'\\U||
+             `>'-.!@%()@'@_%-'_.-o _.|'||
+              ||-._'-.@.-'_.-' _.-o  |'||
+              ||=[ '-._.-\\U/.-'    o |'||
+              || '-.]=|| |'|      o  |'||
+              ||      || |'|        _| ';
+              ||      || |'|    _.-'_.-'
+              |'-._   || |'|_.-'_.-'
+                '-._'-.|| |' `_.-'
+                    '-.||_/.-'
+
+          yeehaw partner -- you took the easter egg route.
+
+          if you're reading this it means:
+            1. the hardened role you built actually permits s3:GetObject
+               on this bucket under the reports/ prefix, with TLS
+            2. it permits sts:AssumeRole onto the instance profile
+               (or you're being naughty and reading as an admin)
+
+          ride on. -- the iam wranglers
+          """
+
+          def send(event, context, status, data=None, reason=None):
+              body = {
+                  'Status': status,
+                  'Reason': reason or f'See CloudWatch Log Group {context.log_group_name}',
+                  'PhysicalResourceId': event.get('PhysicalResourceId') or context.log_stream_name,
+                  'StackId': event['StackId'],
+                  'RequestId': event['RequestId'],
+                  'LogicalResourceId': event['LogicalResourceId'],
+                  'Data': data or {},
+              }
+              encoded = json.dumps(body).encode('utf-8')
+              req = urllib.request.Request(
+                  event['ResponseURL'],
+                  data=encoded,
+                  method='PUT',
+                  headers={'Content-Type': '', 'Content-Length': str(len(encoded))},
+              )
+              urllib.request.urlopen(req)
+
+          def handler(event, context):
+              bucket = event['ResourceProperties']['Bucket']
+              key = event['ResourceProperties']['Key']
+              try:
+                  if event['RequestType'] in ('Create', 'Update'):
+                      s3.put_object(
+                          Bucket=bucket,
+                          Key=key,
+                          Body=EASTER_EGG.encode('utf-8'),
+                          ContentType='text/plain',
+                      )
+                  elif event['RequestType'] == 'Delete':
+                      try:
+                          s3.delete_object(Bucket=bucket, Key=key)
+                      except Exception:
+                          pass
+                  send(event, context, 'SUCCESS', {'Bucket': bucket, 'Key': key})
+              except Exception as exc:
+                  send(event, context, 'FAILED', reason=str(exc))
+      Tags:
+        - Key: Environment
+          Value: Training
+        - Key: Lab
+          Value: KiroIAMHardening
+
+  AnalyticsSeed:
+    Type: Custom::AnalyticsSeed
+    Properties:
+      ServiceToken: !GetAtt SeederFunction.Arn
+      Bucket: !Ref AnalyticsBucket
+      Key: reports/quarterly.txt
+
+Outputs:
+  BucketName:
+    Description: Analytics data bucket name
+    Value: !Ref AnalyticsBucket
+  BucketArn:
+    Description: Analytics data bucket ARN
+    Value: !GetAtt AnalyticsBucket.Arn
+  ReportsObjectKey:
+    Description: Key of the seeded easter-egg report
+    Value: reports/quarterly.txt

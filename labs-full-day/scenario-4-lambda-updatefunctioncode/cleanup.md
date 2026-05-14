@@ -1,6 +1,6 @@
 # Scenario 4 — Cleanup
 
-Run as `taractf` (admin) after the defense demo, before the next scenario.
+Run as `iamws-lab-default` (admin) after the defense demo, before the next scenario.
 
 ## Restore the Lambda's original code
 
@@ -8,7 +8,7 @@ The attack overwrote `iamws-privileged-lambda`'s code. Restore it via Terraform 
 
 ```bash
 cd <repo-root>/labs-two-hour-workshop/terraform
-terraform apply -target=module.lambda --profile taractf
+terraform apply -target=module.lambda --profile iamws-lab-default
 ```
 
 If Terraform isn't available locally, restore from a saved pre-attack zip:
@@ -17,7 +17,7 @@ If Terraform isn't available locally, restore from a saved pre-attack zip:
 aws lambda update-function-code \
   --function-name iamws-privileged-lambda \
   --zip-file fileb:///tmp/validation/scenario4-original-code.zip \
-  --profile taractf
+  --profile iamws-lab-default
 ```
 
 ## Revert the defense
@@ -25,15 +25,15 @@ aws lambda update-function-code \
 Remove the scoped inline policy and re-attach the original managed policy:
 
 ```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --profile taractf)
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --profile iamws-lab-default)
 
 aws iam delete-user-policy \
-  --user-name iamws-lambda-developer-user --policy-name SecureLambdaDeveloper --profile taractf
+  --user-name iamws-lambda-developer-user --policy-name SecureLambdaDeveloper --profile iamws-lab-default
 
 aws iam attach-user-policy \
   --user-name iamws-lambda-developer-user \
   --policy-arn arn:aws:iam::${ACCOUNT_ID}:policy/iamws-lambda-developer-policy \
-  --profile taractf
+  --profile iamws-lab-default
 ```
 
 ## Confirm clean state
@@ -41,12 +41,12 @@ aws iam attach-user-policy \
 ```bash
 aws iam list-attached-user-policies \
   --user-name iamws-lambda-developer-user \
-  --query 'AttachedPolicies[].PolicyName' --output table --profile taractf
+  --query 'AttachedPolicies[].PolicyName' --output table --profile iamws-lab-default
 # expect: iamws-lambda-developer-policy
 
 aws iam list-user-policies \
   --user-name iamws-lambda-developer-user \
-  --query 'PolicyNames' --output text --profile taractf
+  --query 'PolicyNames' --output text --profile iamws-lab-default
 # expect: (empty)
 ```
 

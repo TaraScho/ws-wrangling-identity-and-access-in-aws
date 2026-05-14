@@ -1,5 +1,5 @@
 #!/bin/bash
-# wwhf-setup.sh — Full-day workshop setup script
+# bsides-setup.sh — Full-day workshop setup script
 # Forked from labs-two-hour-workshop/wwhf-setup.sh. Diverges from the 2-hour
 # version: iam-recon is the only recon tool (no pmapper, no awspx Docker),
 # and an extra iamws-scanner-user profile is configured for read-only graph
@@ -51,7 +51,7 @@ echo "  Terraform dir   : $TERRAFORM_DIR"
 echo ""
 
 # Required system commands
-for cmd in git python3 unzip wget; do
+for cmd in git python3 unzip wget jq zip; do
   if ! command -v "$cmd" &>/dev/null; then
     fail "$cmd is not installed. Please install it and re-run this script."
   fi

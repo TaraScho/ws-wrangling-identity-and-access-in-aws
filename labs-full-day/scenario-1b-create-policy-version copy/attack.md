@@ -4,7 +4,7 @@ Source: Lab 1 Exercise 3. Identity: `iamws-policy-developer-user`. Target: crown
 
 ## Pre-attack — recon with iam-recon
 
-- `iam-recon --account $ACCOUNT_ID pathfinding` → primary recon for this scenario. Maps to pathfinding.cloud `[iam-001]` (Self-Escalation via CreatePolicyVersion).
+- `iam-recon --account $ACCOUNT_ID pathfinding --principal user/iamws-policy-developer-user` → primary recon for this scenario. Maps to pathfinding.cloud `[iam-001]` (Self-Escalation via CreatePolicyVersion).
 - `iam-recon --account $ACCOUNT_ID argquery --principal user/iamws-policy-developer-user --action iam:CreatePolicyVersion` → confirms the dangerous permission with a clean ALLOW line.
 - ⚠️ Note: `argquery --preset privesc` will **not** flag this — iam-recon has no `CreatePolicyVersion` edge checker in `src/edges/iam.rs`. Pathfinding is the right tool here. This is itself a teaching moment (edges vs path mapping).
 - `iam-recon --account $ACCOUNT_ID visualize --interactive-viz` → click the user node; pathfinding annotations show alongside the graph.

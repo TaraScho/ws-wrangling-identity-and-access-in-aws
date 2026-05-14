@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Overly permissive EC2 instance role for the Kiro IAM Hardening lab.
+  DO NOT use in production. Companion to labs-full-day/kiro-iam-hardening.
+
+Resources:
+  AnalyticsInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AnalyticsAppRole-Insecure
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: OverlyPermissivePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: '*'
+                Resource: '*'
+      Tags:
+        - Key: Environment
+          Value: Training
+        - Key: Lab
+          Value: KiroIAMHardening
+
+  AnalyticsInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: AnalyticsAppProfile-Insecure
+      Roles:
+        - !Ref AnalyticsInstanceRole
+
+Outputs:
+  RoleArn:
+    Description: ARN of the (insecure) analytics role
+    Value: !GetAtt AnalyticsInstanceRole.Arn
+  RoleName:
+    Description: Name of the (insecure) analytics role
+    Value: !Ref AnalyticsInstanceRole

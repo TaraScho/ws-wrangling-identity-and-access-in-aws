@@ -74,8 +74,8 @@ aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
 
 ## Verify with iam-recon
 
-- `iam-recon graph create --profile taractf`.
-- `iam-recon --account $ACCOUNT_ID pathfinding` → `[lambda-003]` / `[lambda-004]` finding for `iamws-lambda-developer-user` against `iamws-privileged-lambda` should disappear.
+- `iam-recon graph create --profile iamws-lab-default`.
+- `iam-recon --account $ACCOUNT_ID pathfinding --principal user/iamws-lambda-developer-user` → `[lambda-003]` / `[lambda-004]` finding for `iamws-lambda-developer-user` against `iamws-privileged-lambda` should disappear (output: `no known paths matched`).
 - `iam-recon --account $ACCOUNT_ID argquery --principal user/iamws-lambda-developer-user --action lambda:UpdateFunctionCode --resource 'arn:aws:lambda:*:*:function:iamws-privileged-lambda'` → should now show DENY.
 - ⚠️ `argquery --preset privesc` will not show a difference here — same lambda-edge-checker short-circuit as in `attack.md`. Pathfinding is the verification surface for this scenario.
 - If `dev-*` functions exist in the account, confirm pathfinding/argquery still allow updates against those (proves the policy isn't over-restrictive).

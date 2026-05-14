@@ -11,7 +11,7 @@
 Run an `iam-recon` pathfinding scan to refresh yourself on the self-escalation privilege escalation path available:
 
 ```bash
-iam-recon --account $ACCOUNT_ID pathfinding --principal iamws-policy-developer-user
+iam-recon --account $ACCOUNT_ID pathfinding --principal user/iamws-policy-developer-user
 ```
 
 Look for the `[iam-001] user/iamws-policy-developer-user` entry:

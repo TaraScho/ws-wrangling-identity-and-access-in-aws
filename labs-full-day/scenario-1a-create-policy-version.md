@@ -6,7 +6,7 @@
 
 **The Vulnerability:** `iamws-policy-developer-user` can create new versions of IAM policies — including `iamws-developer-tools-policy`, which is attached to their own user. By creating a new version with administrator permissions and setting it as default, they grant themselves full access without touching any other principal or resource.
 
-**Real-world scenario:** A developer is given permission to manage "development" policies for their team. Without proper constraints, they can modify ANY policy — including ones attached to their own user — effectively granting themselves any permission they want.
+**Real-world scenario:** Larger orgs often delegate IAM policy management to non-admins — platform engineers, senior developers, policy owners — so the central security team isn't a bottleneck. `iam:CreatePolicyVersion` is the permission they get, almost always with `Resource: "*"` because maintaining a per-policy allowlist is tedious. The catch: that same user is governed by IAM policies too. Any customer-managed policy attached to them is now one they can edit. Creating a new version of their own attached policy that allows `*:*` turns delegated policy management into account admin in a single API call.
 
 ### Part A: Identify with iam-recon
 
@@ -16,18 +16,22 @@ You already built the iam-recon graph during [lab setup](lab-setup-instructions.
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --profile iamws-scanner-user)
 ```
 
-Re-open the pathfinding output from setup (or re-run it — the data is cached):
+Scope the pathfinding scan to this scenario's principal — no need to scroll through every match in the account-wide view from setup:
 
 ```bash
-iam-recon --account $ACCOUNT_ID pathfinding
+iam-recon --account $ACCOUNT_ID pathfinding --principal user/iamws-policy-developer-user
 ```
 
-Find the `[iam-001]` entry for `iamws-policy-developer-user`:
+Expected output:
 
 ```
-[iam-001] user/iamws-policy-developer-user (self-escalation)
-    Path: iam:CreatePolicyVersion
-    Perms: iam:CreatePolicyVersion
+Pathfinding.cloud
+  Database: N known escalation paths bundled
+
+  user/iamws-policy-developer-user — 1 paths matched:
+
+  [iam-001] CreatePolicyVersion (self-escalation)
+    Permissions: iam:CreatePolicyVersion
     https://www.pathfinding.cloud/paths/iam-001
 ```
 

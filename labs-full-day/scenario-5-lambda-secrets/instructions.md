@@ -6,14 +6,14 @@
 
 **The Vulnerability:** `iamws-secrets-reader-user` can read Lambda function configurations, which include environment variables. The Lambda function `iamws-app-with-secrets` stores database credentials, API keys, and admin passwords in plaintext environment variables — visible to anyone with `lambda:GetFunctionConfiguration`.
 
-**Real-world scenario:** A monitoring or debugging tool needs read access to Lambda configurations to check runtime settings. Environment variables are a common but insecure place to store secrets. Anyone with this read permission can see all of them — no escalation required.
+**Real-world scenario:** Storing secrets directly in Lambda environment variables is one of the most common findings in cloud pen tests. Developers do it because it's the path of least resistance — env vars are right there in the console, no extra service to configure. The exposure surface is huge: any IAM principal with `lambda:GetFunctionConfiguration` (commonly handed out to support engineers, on-call rotations, monitoring tools, and "read-only" auditor roles) can dump every secret in plaintext with one API call. And because the secrets are usually credentials for things *outside* AWS — database passwords, SaaS API keys, third-party admin logins — IAM can't gate the blast radius once they're leaked.
 
 ### Part A: Identify with iam-recon
 
 Build or refresh your iam-recon graph:
 
 ```bash
-iam-recon graph create --profile taractf
+iam-recon graph create --profile iamws-lab-default
 ```
 
 Confirm the attacker user has permission to read Lambda function configurations:

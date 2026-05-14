@@ -77,10 +77,10 @@ aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
 
 ## Verify with iam-recon
 
-- `iam-recon graph create --profile taractf`.
-- `iam-recon --account $ACCOUNT_ID argquery --preset privesc` → EC2 PassRole edge from `iamws-ci-runner-user` → `iamws-prod-deploy-role` is gone. ⚠️ Note: `role/iamws-ci-runner-role` (the role version of the same principal, used for IAM role chaining) still appears in the privesc list — the defense only put a scoped inline policy on the *user*; the *role* still has the original `iamws-ci-runner-policy` attached. If you want the role's edge to also disappear, apply the same `SecurePassRole` policy to the role and detach the managed policy from the role too.
+- `iam-recon graph create --profile iamws-lab-default`.
+- `iam-recon --account $ACCOUNT_ID argquery --preset privesc --principal user/iamws-ci-runner-user` → reports `cannot escalate to admin`; the EC2 PassRole edge to `iamws-prod-deploy-role` is gone. ⚠️ Note: `role/iamws-ci-runner-role` (the role version of the same principal, used for IAM role chaining) still escalates — re-run with `--principal role/iamws-ci-runner-role` to confirm. The defense only put a scoped inline policy on the *user*; the *role* still has the original `iamws-ci-runner-policy` attached. If you want the role's edge to also disappear, apply the same `SecurePassRole` policy to the role and detach the managed policy from the role too.
 - `iam-recon --account $ACCOUNT_ID argquery --principal user/iamws-ci-runner-user --action iam:PassRole --resource 'arn:aws:iam::*:role/iamws-prod-deploy-role'` → should now show DENY.
-- `iam-recon --account $ACCOUNT_ID pathfinding` → `[ec2-001]` finding for this user disappears.
+- `iam-recon --account $ACCOUNT_ID pathfinding --principal user/iamws-ci-runner-user` → `[ec2-001]` finding for this user disappears.
 
 ## Demo bullets
 

@@ -89,7 +89,7 @@ aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
 
 ## Verify with iam-recon
 
-- `iam-recon graph create --profile taractf` (re-scan with the new boundary).
+- `iam-recon graph create --profile iamws-lab-default` (re-scan with the new boundary).
 - ⚠️ **iam-recon does NOT evaluate permissions boundaries in `argquery` or `pathfinding`** despite collecting them correctly into the cached graph. Verified live on 2026-05-12: with the boundary applied and AWS returning `explicitDeny`, iam-recon still reports `ALLOW user/iamws-policy-developer-user can call iam:CreatePolicyVersion with *` and the `[iam-001]` pathfinding row is unchanged. The cached `nodes.json` has the boundary attached; the local policy evaluator just doesn't apply it in the codepath argquery uses.
 - **Use AWS `simulate-principal-policy` as the verification surface** for this scenario (it correctly returns `explicitDeny`):
   ```bash
@@ -97,7 +97,7 @@ aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
     --policy-source-arn arn:aws:iam::${ACCOUNT_ID}:user/iamws-policy-developer-user \
     --action-names iam:CreatePolicyVersion \
     --query 'EvaluationResults[0].EvalDecision' \
-    --profile taractf
+    --profile iamws-lab-default
   # expect: "explicitDeny"
   ```
 - Re-running the attack as the attacker user (block above) is the other clean verification — `CreatePolicyVersion` returns `AccessDenied with an explicit deny in a permissions boundary`.

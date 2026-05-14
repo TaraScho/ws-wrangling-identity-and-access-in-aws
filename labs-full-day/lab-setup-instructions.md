@@ -66,7 +66,7 @@ cd ~/workshop
 ## Step 3: Run the Setup Script
 
 ```bash
-bash labs-full-day/wwhf-setup.sh
+bash labs-full-day/bsides-setup.sh
 ```
 
 The full-day setup script:

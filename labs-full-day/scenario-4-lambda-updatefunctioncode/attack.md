@@ -4,7 +4,7 @@ Source: Lab 1 Exercise 6. Identity: `iamws-lambda-developer-user`. Target: crown
 
 ## Pre-attack — recon with iam-recon
 
-- `iam-recon --account $ACCOUNT_ID pathfinding` → primary recon for this scenario. Maps to pathfinding.cloud `[lambda-003]` / `[lambda-004]` (Existing PassRole via UpdateFunctionCode).
+- `iam-recon --account $ACCOUNT_ID pathfinding --principal user/iamws-lambda-developer-user` → primary recon for this scenario. Maps to pathfinding.cloud `[lambda-003]` / `[lambda-004]` (Existing PassRole via UpdateFunctionCode).
 - `iam-recon --account $ACCOUNT_ID argquery --principal user/iamws-lambda-developer-user --action lambda:UpdateFunctionCode` → ALLOW line confirms unrestricted update.
 - ⚠️ Note: `argquery --preset privesc` will **not** flag this. iam-recon's Lambda edge checker short-circuits at `iam:PassRole` (`src/edges/lambda.rs:79`) — since this user has `lambda:*` but no `iam:PassRole`, the existing-function path is skipped. Pathfinding catches it because it matches on dangerous permissions, not graph edges.
 
