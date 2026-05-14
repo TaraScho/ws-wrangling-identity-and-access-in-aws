@@ -1,10 +1,10 @@
 # Full-Day Workshop — Lab Cleanup
 
-End-to-end teardown for everything the full-day workshop creates: scenario exercise artifacts, the Kiro hardening lab CloudFormation stacks, the Terraform-deployed vulnerable infrastructure, the persistent admin user (if used), and the AWS CLI profiles. Run this when you're done with the workshop and want your sandbox account empty.
+End-to-end teardown for everything the full-day workshop creates: scenario exercise artifacts, the Kiro hardening lab CloudFormation stacks, the Terraform-deployed vulnerable infrastructure, and the AWS CLI profiles. Run this when you're done with the workshop and want your sandbox account empty.
 
 ## Before you begin
 
-1. Run every step as an **admin identity in your sandbox account** (NOT one of the scenario users). On the lab VM that's `iamws-lab-default`; on your own laptop it's whatever IAM identity you used to run `bsides-setup.sh`. Examples in this doc use `--profile iamws-lab-default` — substitute your admin profile if different.
+1. Run every step as the **`iamws-lab-default`** admin profile that `bsides-setup.sh` configured for you (NOT one of the scenario users). Examples in this doc use `--profile iamws-lab-default` throughout.
 
 1. Set your account ID once:
 
@@ -151,45 +151,29 @@ done
 ```bash
 TERRAFORM_DIR="$(git rev-parse --show-toplevel)/labs-two-hour-workshop/terraform"
 
-terraform -chdir="$TERRAFORM_DIR" destroy -auto-approve
+# Workshop VMs ship with either Terraform or OpenTofu — pick whichever is present.
+TF_BIN=$(command -v terraform || command -v tofu) \
+  || { echo "Need terraform or tofu installed"; exit 1; }
+
+"$TF_BIN" -chdir="$TERRAFORM_DIR" destroy -auto-approve
 ```
 
-This removes all six vulnerable IAM users, their policies and groups, the privileged roles, the crown jewels S3 bucket, the privileged and app Lambdas, and the EC2 security group / VPC bits the workshop provisioned.
+This removes all eight workshop IAM users (six scenario users, `iamws-scanner-user`, and `iamws-lab-default`), their policies and groups, the privileged roles, the crown jewels S3 bucket, the privileged and app Lambdas, and the EC2 security group / VPC bits the workshop provisioned.
+
+> [!IMPORTANT]
+> `iamws-lab-default` is the profile you used to run every step above. Once `terraform destroy` finishes, that IAM user is gone — any further `--profile iamws-lab-default` calls will fail with `InvalidClientTokenId`. The remaining cleanup step only edits local files and doesn't need an AWS identity.
 
 If `terraform destroy` errors out, the most likely cause is a Step 1 artifact left behind — re-check Scenario 3 (running EC2 instance) and Scenario 1a (non-default policy version), fix, and re-run.
 
 ---
 
-## Step 4: Delete the persistent admin user (lab VM only)
+## Step 4: Remove the local AWS CLI profiles
 
-If your setup ran on the lab VM (i.e., temporary credentials were detected), `bsides-setup.sh` created an out-of-band IAM user named `iamws-lab-default` with `AdministratorAccess` attached. This user is **not** managed by Terraform and must be deleted manually. Skip this step if you ran setup on your own laptop with long-lived credentials.
-
-You can't run the deletion as `iamws-lab-default` itself — switch back to the credentials you originally used in [Step 2 of Lab 1: Lab Setup](../lab-1-setup/README.md#step-2-authenticate-to-your-sandbox-account-in-the-terminal) (the sandbox identity that bootstrapped the workshop), or any other admin identity in the account.
-
-```bash
-# Detach the AdministratorAccess managed policy
-aws iam detach-user-policy \
-  --user-name iamws-lab-default \
-  --policy-arn arn:aws:iam::aws:policy/AdministratorAccess 2>/dev/null || true
-
-# Delete all access keys on the user
-for key in $(aws iam list-access-keys --user-name iamws-lab-default \
-    --query 'AccessKeyMetadata[].AccessKeyId' --output text 2>/dev/null); do
-  aws iam delete-access-key --user-name iamws-lab-default --access-key-id "$key"
-done
-
-# Delete the user
-aws iam delete-user --user-name iamws-lab-default 2>/dev/null || true
-```
-
----
-
-## Step 5: Remove the local AWS CLI profiles
-
-Setup wrote credentials for seven workshop profiles into `~/.aws/credentials` and `~/.aws/config`. Remove them so you don't leave stale (and now-invalid) access keys sitting in the file:
+Setup wrote credentials for eight workshop profiles into `~/.aws/credentials` and `~/.aws/config` (the six scenario profiles, `iamws-scanner-user`, and `iamws-lab-default`). It also mirrored the `iamws-lab-default` credentials into the unnamed `default` profile. Remove them all so you don't leave stale (and now-invalid) access keys sitting in the file:
 
 ```bash
 for profile in \
+    default \
     iamws-scanner-user \
     iamws-group-admin-user \
     iamws-policy-developer-user \
@@ -204,13 +188,15 @@ done
 ```
 
 > [!NOTE]
-> `aws configure set` with an empty value leaves the `[profile ...]` headers in place but blanks the credentials. If you'd rather wipe them completely, open `~/.aws/credentials` and `~/.aws/config` and delete the `iamws-*` blocks by hand.
+> `aws configure set` with an empty value leaves the `[profile ...]` headers in place but blanks the credentials. If you'd rather wipe them completely, open `~/.aws/credentials` and `~/.aws/config` and delete the `default` and `iamws-*` blocks by hand.
 
 ---
 
-## Step 6 (optional): Workstation cleanup
+## Step 5 (optional): Workstation cleanup
 
-Skip this entire step if you used the workshop lab VM — it's a disposable image and the instructor will reclaim it. **Do this only if you ran the labs on your own Mac or Linux laptop and want to uninstall what the setup script added.**
+This step is for **own-laptop** runs only. **If you used the pre-built workshop image, skip ahead to [Verify a clean account](#verify-a-clean-account)** — the simplest cleanup is to nuke the entire VM. The "Stop / cleanup" section of the [Securing the Cloud — Workstation Image](https://docs.google.com/document/d/1bLbSTfht3QR-hxu03v33n1x-NdZ5XBlaXHqSjfx8-gY/edit?usp=sharing) guide has the exact commands for VirtualBox, Tart, or Docker.
+
+The rest of this step is for laptop runs that want to uninstall what the setup script added.
 
 At a high level, `bsides-setup.sh` may have touched the following on your workstation:
 

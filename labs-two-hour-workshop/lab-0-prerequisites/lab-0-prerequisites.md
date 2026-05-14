@@ -214,7 +214,7 @@ session-manager-plugin --version
 # awspx running
 curl -s -o /dev/null -w "%{http_code}" http://localhost  # Should return 200
 
-# Exercise profiles configured (should return 6)
+# Workshop profiles configured (should return 7: 6 scenario users + iamws-lab-default)
 aws configure list-profiles | grep -c iamws
 
 # Test an exercise profile

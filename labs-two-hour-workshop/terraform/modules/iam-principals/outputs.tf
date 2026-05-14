@@ -67,3 +67,14 @@ output "scanner_secret_access_key" {
   value       = aws_iam_access_key.iamws-scanner-user.secret
   sensitive   = true
 }
+
+output "lab_default_access_key_id" {
+  description = "Access key ID for iamws-lab-default (admin)"
+  value       = aws_iam_access_key.iamws-lab-default-user.id
+}
+
+output "lab_default_secret_access_key" {
+  description = "Secret access key for iamws-lab-default (admin)"
+  value       = aws_iam_access_key.iamws-lab-default-user.secret
+  sensitive   = true
+}

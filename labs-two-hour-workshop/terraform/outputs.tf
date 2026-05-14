@@ -47,6 +47,15 @@ output "scanner_secret_access_key" {
   sensitive = true
 }
 
+output "lab_default_access_key_id" {
+  value = module.iam-principals.lab_default_access_key_id
+}
+
+output "lab_default_secret_access_key" {
+  value     = module.iam-principals.lab_default_secret_access_key
+  sensitive = true
+}
+
 # lambda module outputs
 
 output "lambda_developer_access_key_id" {

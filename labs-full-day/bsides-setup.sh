@@ -2,7 +2,7 @@
 # bsides-setup.sh — Full-day workshop setup script
 #
 # Runs on:
-#   - The provided workshop lab VM (Linux, every dependency pre-installed)
+#   - The pre-built workshop image (Linux, every dependency pre-installed)
 #   - A learner's own Mac or Linux laptop (script installs missing dependencies)
 #
 # Forked from labs-two-hour-workshop/wwhf-setup.sh. Diverges from the 2-hour
@@ -60,7 +60,7 @@ case "$(uname -s)" in
     IAM_RECON_OS="macos"
     ;;
   *)
-    fail "Unsupported OS: $(uname -s). iam-recon only ships Linux and macOS binaries — use the provided lab VM for this workshop."
+    fail "Unsupported OS: $(uname -s). iam-recon only ships Linux and macOS binaries — use the pre-built workshop image for this workshop."
     ;;
 esac
 
@@ -96,7 +96,7 @@ echo "  Tools directory : $TOOLS_DIR"
 echo "  Terraform dir   : $TERRAFORM_DIR"
 echo ""
 
-# Required base commands. Available out-of-the-box on the lab VM; learners on
+# Required base commands. Available out-of-the-box inside the workshop image; learners on
 # their own machines may need to install missing entries via their package
 # manager (brew on macOS, apt/yum on Linux).
 for cmd in git python3 unzip curl jq zip; do
@@ -121,6 +121,15 @@ step_banner "Step 1: Setting up directory structure"
 mkdir -p "$TOOLS_DIR/bin"
 export PATH="$TOOLS_DIR/bin:$PATH"
 echo "  ✓ $TOOLS_DIR/bin ready"
+
+# OpenTofu compatibility: workshop VMs may ship `tofu` instead of `terraform`.
+# tofu is a drop-in fork — same CLI, compatible state — so if tofu is the only
+# IaC binary present, alias the `terraform` command to it for the rest of this
+# script. When real terraform is on PATH, leave it alone.
+if command -v tofu &>/dev/null && ! command -v terraform &>/dev/null; then
+  echo "  ✓ Detected OpenTofu — using tofu in place of terraform"
+  terraform() { command tofu "$@"; }
+fi
 
 # ============================================================================
 # Step 2 — Install iam-recon
@@ -317,6 +326,7 @@ REGION="us-east-1"
 
 # Format: "<profile-name>:<terraform-output-prefix>"
 # iamws-scanner-user is the read-only recon profile used by iam-recon.
+# iamws-lab-default is the admin profile referenced throughout the lab docs.
 PROFILES=(
   "iamws-scanner-user:scanner"
   "iamws-group-admin-user:group_admin"
@@ -325,6 +335,7 @@ PROFILES=(
   "iamws-ci-runner-user:ci_runner"
   "iamws-lambda-developer-user:lambda_developer"
   "iamws-secrets-reader-user:secrets_reader"
+  "iamws-lab-default:lab_default"
 )
 
 PROFILE_COUNT=0
@@ -352,65 +363,32 @@ echo ""
 echo "  ✓ $PROFILE_COUNT exercise profiles configured"
 
 # ============================================================================
-# Step 8 — Persistent default profile (lab VM only)
+# Step 8 — Populate the default profile from iamws-lab-default
 # ============================================================================
-# Only meaningful when the caller is using temporary credentials (AWS_SESSION_TOKEN
-# is set) — typically the lab VM, where Guacamole disconnects would otherwise
-# break the CLI session. Learners running on their own laptop with long-lived
-# IAM user access keys don't need this and shouldn't have an extra admin user
-# left lying around in their sandbox.
+# iamws-lab-default is created as part of `terraform apply` (managed in the
+# iam-principals module). Here we just mirror its credentials into the
+# unnamed `default` profile so that:
+#   - The AWS CLI keeps working after a Guacamole / SSH session drops the
+#     env-var credentials the learner started with.
+#   - Any `aws` command without an explicit --profile flag uses the admin user.
+# The named `iamws-lab-default` profile is already configured in Step 7.
 
-DID_DEFAULT_PROFILE=0
-if [ -n "${AWS_SESSION_TOKEN:-}" ]; then
-  step_banner "Step 8: Setting up persistent default profile (temporary credentials detected)"
+step_banner "Step 8: Mirroring iamws-lab-default into the default profile"
 
-  DEFAULT_USER="iamws-lab-default"
+lab_default_ak=$(terraform -chdir="$TERRAFORM_DIR" output -raw lab_default_access_key_id 2>/dev/null) \
+  || fail "Could not read terraform output lab_default_access_key_id. Did terraform apply succeed?"
+lab_default_sk=$(terraform -chdir="$TERRAFORM_DIR" output -raw lab_default_secret_access_key 2>/dev/null) \
+  || fail "Could not read terraform output lab_default_secret_access_key. Did terraform apply succeed?"
 
-  if aws sts get-caller-identity --profile default 2>/dev/null | grep -q "$DEFAULT_USER"; then
-    echo "  ✓ Persistent default profile already configured"
-    DID_DEFAULT_PROFILE=1
-  else
-    if aws iam get-user --user-name "$DEFAULT_USER" &>/dev/null; then
-      echo "  IAM user $DEFAULT_USER already exists"
-    else
-      echo "  Creating IAM user $DEFAULT_USER..."
-      aws iam create-user --user-name "$DEFAULT_USER" --output text &>/dev/null \
-        || fail "Failed to create IAM user $DEFAULT_USER."
-      aws iam attach-user-policy --user-name "$DEFAULT_USER" \
-        --policy-arn arn:aws:iam::aws:policy/AdministratorAccess \
-        || fail "Failed to attach AdministratorAccess to $DEFAULT_USER."
-    fi
-
-    echo "  Creating access key..."
-    KEY_JSON=$(aws iam create-access-key --user-name "$DEFAULT_USER" --output json) \
-      || fail "Failed to create access key for $DEFAULT_USER. (Max 2 keys per user — delete old keys if needed.)"
-
-    AK=$(echo "$KEY_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['AccessKey']['AccessKeyId'])")
-    SK=$(echo "$KEY_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['AccessKey']['SecretAccessKey'])")
-
-    aws configure set aws_access_key_id "$AK" --profile default
-    aws configure set aws_secret_access_key "$SK" --profile default
-    aws configure set region "$REGION" --profile default
-
-    # New IAM access keys can take a few seconds to propagate (eventual consistency)
-    echo "  Waiting for access key to become active..."
-    for i in 1 2 3 4 5; do
-      if aws sts get-caller-identity --profile default &>/dev/null; then
-        break
-      fi
-      if [ "$i" -eq 5 ]; then
-        fail "Default profile created but authentication failed after 25s. The access key may need more time to propagate — try: aws sts get-caller-identity --profile default"
-      fi
-      sleep 5
-    done
-    echo "  ✓ Persistent default profile configured ($DEFAULT_USER)"
-    echo "    If you lose your session, your CLI will automatically use this profile."
-    DID_DEFAULT_PROFILE=1
-  fi
-else
-  step_banner "Step 8: Skipping persistent default profile (long-lived credentials detected)"
-  echo "  No AWS_SESSION_TOKEN — your CLI auth will persist across reconnects already."
+if [ -z "$lab_default_ak" ] || [ -z "$lab_default_sk" ]; then
+  fail "Empty credentials for iamws-lab-default. Check terraform outputs."
 fi
+
+aws configure set aws_access_key_id "$lab_default_ak" --profile default
+aws configure set aws_secret_access_key "$lab_default_sk" --profile default
+aws configure set region "$REGION" --profile default
+echo "  ✓ Default profile configured (iamws-lab-default)"
+echo "    If you lose your session, your CLI will automatically use this profile."
 
 # ============================================================================
 # Final — Validation summary
@@ -430,22 +408,20 @@ check() {
   fi
 }
 
-check "terraform"       "terraform version"
-check "iam-recon"       "iam-recon --help"
-check "ssm plugin"      "command -v session-manager-plugin"
-check "scanner profile" "aws sts get-caller-identity --profile iamws-scanner-user"
-
-if [ "$DID_DEFAULT_PROFILE" -eq 1 ]; then
-  check "default profile" "aws sts get-caller-identity --profile default"
-fi
+check "terraform"          "terraform version"
+check "iam-recon"          "iam-recon --help"
+check "ssm plugin"         "command -v session-manager-plugin"
+check "scanner profile"    "aws sts get-caller-identity --profile iamws-scanner-user"
+check "lab-default profile" "aws sts get-caller-identity --profile iamws-lab-default"
+check "default profile"    "aws sts get-caller-identity --profile default"
 
 IAMWS_COUNT=$(aws configure list-profiles 2>/dev/null | grep -c iamws || true)
 TOTAL=$((TOTAL + 1))
-if [ "$IAMWS_COUNT" -eq 7 ]; then
-  echo "  ✓ exercise profiles ($IAMWS_COUNT/7)"
+if [ "$IAMWS_COUNT" -eq 8 ]; then
+  echo "  ✓ workshop profiles ($IAMWS_COUNT/8)"
   PASS=$((PASS + 1))
 else
-  echo "  ✗ exercise profiles ($IAMWS_COUNT/7)"
+  echo "  ✗ workshop profiles ($IAMWS_COUNT/8)"
 fi
 
 echo ""

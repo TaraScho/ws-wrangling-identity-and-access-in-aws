@@ -4,8 +4,8 @@
 
 Before the first attack scenario you'll set up your workstation, deploy the vulnerable lab infrastructure into your own AWS sandbox, and build the IAM recon graph that every scenario in the workshop will query. By the end of this setup you will have:
 
-- A workstation (workshop lab VM **or** your own Mac/Linux laptop) with every workshop dependency installed
-- Six intentionally-vulnerable IAM users plus a least-privilege `iamws-scanner-user` for read-only recon, all deployed into your AWS sandbox
+- A workstation (pre-built workshop image **or** your own Mac/Linux laptop) with every workshop dependency installed
+- Six intentionally-vulnerable IAM users, plus a least-privilege `iamws-scanner-user` for read-only recon and an `iamws-lab-default` admin user for setup/debugging/cleanup, all deployed into your AWS sandbox
 - An [`iam-recon`](https://github.com/yourorg/iam-recon) graph of the account, ready to query offline
 - A working mental model of the five privilege escalation categories used by [pathfinding.cloud](https://pathfinding.cloud)
 - A short tour of the graph so you know where every scenario starts before we begin Scenario 1a
@@ -37,20 +37,26 @@ In that sandbox account you'll need an IAM identity (user or role) with permissi
 
 ## Step 1: Set up your workstation
 
-You can run the labs on the provided workshop VM **or** on your own Mac/Linux laptop. Both paths use the same setup script in Step 4.
+You can run the labs inside the **pre-built workshop image** (recommended) **or** on your own Mac/Linux laptop. Both paths use the same setup script in Step 4.
 
-1. **Workshop lab VM (recommended).** Your instructor will hand out a Guacamole URL and login. Every workshop dependency (AWS CLI v2, Terraform, `iam-recon`, the SSM Session Manager plugin) is pre-installed. Skip ahead to Step 2.
+1. **Pre-built workshop image (recommended).** A self-contained Ubuntu 24.04 VM with every workshop dependency (AWS CLI v2, Terraform, `iam-recon`, the SSM Session Manager plugin) pre-installed. Three variants are published — VirtualBox for Intel/AMD Macs, Windows, and Linux; Tart for Apple Silicon Macs; Docker for headless use. You download and run it locally — no instructor-hosted infrastructure.
+
+   1. Follow [Securing the Cloud — Workstation Image](https://docs.google.com/document/d/1bLbSTfht3QR-hxu03v33n1x-NdZ5XBlaXHqSjfx8-gY/edit?usp=sharing) end to end. It walks you through picking the right variant, downloading and verifying the image, importing it, starting the VM, and signing in to Apache Guacamole.
+   1. Once you're in the **virtual_desktop** Guacamole connection (signed in as the `ubuntu` user, with passwordless `sudo` and the full security toolchain on `$PATH`), come back here and continue with Step 2.
+
+   > [!TIP]
+   > The image is several GB and the download + import takes 10–20 minutes on a typical connection. Start it well before the workshop kicks off — ideally the night before — so you're not racing the agenda.
 
 1. **Your own Mac or Linux laptop.** Make sure [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) is installed (`aws --version` should print v2.x). The setup script in Step 4 will install everything else if it's missing — see [what the script installs](#what-the-script-installs) below.
 
-> [!WARNING]
-> **Windows is not supported.** `iam-recon` only ships Linux and macOS binaries today. If you're on a Windows laptop, use the workshop lab VM instead.
+   > [!NOTE]
+   > **Windows users:** the own-laptop path is Mac/Linux only — `iam-recon` doesn't ship a Windows binary. Use the pre-built workshop image above; its VirtualBox variant runs on Windows.
 
 ---
 
 ## Step 2: Authenticate to your sandbox account in the terminal
 
-Whether you're on the lab VM or your own laptop, you need an authenticated terminal session against **your own sandbox account** before running the setup script.
+Whether you're inside the workshop image or on your own laptop, you need an authenticated terminal session against **your own sandbox account** before running the setup script.
 
 1. Generate or retrieve credentials for the IAM identity you described in [Before you begin](#before-you-begin--bring-your-own-aws-sandbox). The [AWS CLI authentication docs](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-authentication.html) walk through every supported method (IAM Identity Center, long-lived access keys, AssumeRole, etc.) — pick whichever your sandbox uses.
 
@@ -71,7 +77,7 @@ Whether you're on the lab VM or your own laptop, you need an authenticated termi
    The returned `Arn` should match the IAM identity in your sandbox account.
 
 > [!TIP]
-> **On the lab VM (Guacamole):** copying and pasting can be tricky. See the [Guacamole clipboard docs](https://guacamole.apache.org/doc/gug/using-guacamole.html) for OS-specific tips.
+> **In the workshop image (Guacamole):** copying and pasting between your host and the guest can be tricky. See the [Guacamole clipboard docs](https://guacamole.apache.org/doc/gug/using-guacamole.html) for OS-specific tips.
 
 ---
 
@@ -95,21 +101,19 @@ The script:
 1. Verifies prerequisites (AWS credentials, base Unix tools)
 1. Installs any missing workshop dependencies (see [what the script installs](#what-the-script-installs))
 1. Runs `terraform apply` to deploy the vulnerable lab infrastructure into your sandbox account
-1. Configures AWS CLI profiles for **seven** users — the six intentionally-vulnerable scenario users plus `iamws-scanner-user`, a least-privilege read-only identity used for IAM reconnaissance
+1. Configures AWS CLI profiles for **eight** users — the six intentionally-vulnerable scenario users, `iamws-scanner-user` (a least-privilege read-only identity used for IAM reconnaissance), and `iamws-lab-default` (an admin identity used outside the attack scenarios for setup, debugging, and cleanup). It also mirrors `iamws-lab-default`'s credentials into the unnamed `default` profile so the CLI keeps working if you lose your shell session.
 
 When every check passes you'll see a banner like:
 
 ```
-=== Setup Complete! (6/6 checks passed) ===
+=== Setup Complete! (7/7 checks passed) ===
 
 You're ready to start the workshop. Happy hacking!
 ```
 
-(The exact count depends on your environment — own-laptop runs skip the persistent-default-profile check that's only needed on the lab VM.)
-
 ### What the script installs
 
-The script only installs a tool if it isn't already on your `PATH`. On the lab VM everything is pre-installed, so this step is effectively a no-op verification. On your own laptop, expect any of the following to be installed if missing:
+The script only installs a tool if it isn't already on your `PATH`. Inside the workshop image everything is pre-installed, so this step is effectively a no-op verification. On your own laptop, expect any of the following to be installed if missing:
 
 | Tool                        | Source                                                                                  | Why                                                                       |
 |-----------------------------|-----------------------------------------------------------------------------------------|---------------------------------------------------------------------------|

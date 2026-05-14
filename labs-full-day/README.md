@@ -17,14 +17,14 @@ Use this README as your playbook for the day. Each row links to the instructions
 | 11:15 – 11:30 | **Lab 4: Permissions Boundaries & Condition Keys** | [Instructions](./lab-4-permissions-boundaries-and-condition-keys/README.md) [Slides](https://docs.google.com/presentation/d/1gW3cBqOJ_WVPKgZbLy8EnklvhHJ5LBaU/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true)|
 | 11:30 – 12:00 | Lesson: Kiro for Cloud Security | [Slides](https://docs.google.com/presentation/d/1edug67aDepcrbPXwHDflaaVrhGOW1JXO/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true) |
 | 12:00 – 1:00 | Lunch | — |
-| 1:00 – 1:30 | Knowledge Refresh Game | Join link _(tbd)_ |
+| 1:00 – 1:30 | Knowledge Refresh Game | N/A |
 | 1:30 – 2:00 | **Lab 5: Hardening IAM Policies with Kiro + MCP** | [Instructions](./lab-5-kiro-iam-hardening/README.md) |
 | 2:00 – 2:30 | **Lab 6: Privilege Escalation via iam:PassRole (EC2)** | [Instructions](./lab-6-passrole-ec2/README.md)<br>[Slides](https://docs.google.com/presentation/d/1Ooka3AlRLppVj8w9ca1XsPK_pUjnicFs/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true) |
 | 2:30 – 2:45 | Afternoon Break | — |
 | 2:45 – 3:15 | **Lab 7: Privilege Escalation via Lambda UpdateFunctionCode** | [Instructions](./lab-7-lambda-updatefunctioncode/README.md)<br>[Slides](https://docs.google.com/presentation/d/1BeZ_opM_Vfi3_4FLvwP1wbrllA55d4sc/edit?usp=drive_link&rtpof=true&sd=true) |
 | 2:45 – 3:15 | **Lab 8: Lambda Secret Extraction** | [Instructions](./lab-8-lambda-secrets/README.md)<br>[Slides](https://docs.google.com/presentation/d/1JegcTECdlsICUz6EngVbF5HSdzz5aB-W/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true) |
 | 3:15 – 3:30 | Lesson: IAM Spy and Provers | [Slides](https://docs.google.com/presentation/d/1tnTvKrRj0TfFRdA_I7mn8OMqKx0s8ll-/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true) |
-| 3:30 – 4:30 | Flex / Knowledge Game 2 | Join link _(tbd)_ |
+| 3:30 – 4:30 | Flex / Knowledge Game 2 | N/A |
 | 4:30 – 5:00 | **Lab 9: Environment Cleanup and Wrap-up** | [Instructions](./lab-9-cleanup/README.md) |
 
 ## Resources

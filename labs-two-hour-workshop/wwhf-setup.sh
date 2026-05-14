@@ -300,6 +300,7 @@ PROFILES=(
   "iamws-ci-runner-user:ci_runner"
   "iamws-lambda-developer-user:lambda_developer"
   "iamws-secrets-reader-user:secrets_reader"
+  "iamws-lab-default:lab_default"
 )
 
 PROFILE_COUNT=0
@@ -327,56 +328,30 @@ echo ""
 echo "  ✓ $PROFILE_COUNT exercise profiles configured"
 
 # ============================================================================
-# Step 10 — Persistent default profile (survives session disconnect)
+# Step 10 — Populate the default profile from iamws-lab-default
 # ============================================================================
-step_banner "Step 10: Setting up persistent default profile"
+# iamws-lab-default is created as part of `terraform apply` (managed in the
+# iam-principals module). Here we just mirror its credentials into the
+# unnamed `default` profile so the AWS CLI keeps working after a session
+# disconnect drops the env-var credentials the learner started with.
+# The named `iamws-lab-default` profile is already configured in Step 9.
 
-# The facilitator's temporary credentials (env vars) are lost on disconnect.
-# This step creates a long-lived IAM user whose access key is stored in
-# ~/.aws/credentials [default], so the CLI keeps working after reconnect.
+step_banner "Step 10: Mirroring iamws-lab-default into the default profile"
 
-DEFAULT_USER="iamws-lab-default"
+lab_default_ak=$(terraform -chdir="$TERRAFORM_DIR" output -raw lab_default_access_key_id 2>/dev/null) \
+  || fail "Could not read terraform output lab_default_access_key_id. Did terraform apply succeed?"
+lab_default_sk=$(terraform -chdir="$TERRAFORM_DIR" output -raw lab_default_secret_access_key 2>/dev/null) \
+  || fail "Could not read terraform output lab_default_secret_access_key. Did terraform apply succeed?"
 
-if aws sts get-caller-identity --profile default 2>/dev/null | grep -q "$DEFAULT_USER"; then
-  echo "  ✓ Persistent default profile already configured"
-else
-  # Create user if it doesn't exist
-  if aws iam get-user --user-name "$DEFAULT_USER" &>/dev/null; then
-    echo "  IAM user $DEFAULT_USER already exists"
-  else
-    echo "  Creating IAM user $DEFAULT_USER..."
-    aws iam create-user --user-name "$DEFAULT_USER" --output text &>/dev/null \
-      || fail "Failed to create IAM user $DEFAULT_USER."
-    aws iam attach-user-policy --user-name "$DEFAULT_USER" \
-      --policy-arn arn:aws:iam::aws:policy/AdministratorAccess \
-      || fail "Failed to attach AdministratorAccess to $DEFAULT_USER."
-  fi
-
-  echo "  Creating access key..."
-  KEY_JSON=$(aws iam create-access-key --user-name "$DEFAULT_USER" --output json) \
-    || fail "Failed to create access key for $DEFAULT_USER. (Max 2 keys per user — delete old keys if needed.)"
-
-  AK=$(echo "$KEY_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['AccessKey']['AccessKeyId'])")
-  SK=$(echo "$KEY_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin)['AccessKey']['SecretAccessKey'])")
-
-  aws configure set aws_access_key_id "$AK" --profile default
-  aws configure set aws_secret_access_key "$SK" --profile default
-  aws configure set region "$REGION" --profile default
-
-  # New IAM access keys can take a few seconds to propagate (eventual consistency)
-  echo "  Waiting for access key to become active..."
-  for i in 1 2 3 4 5; do
-    if aws sts get-caller-identity --profile default &>/dev/null; then
-      break
-    fi
-    if [ "$i" -eq 5 ]; then
-      fail "Default profile created but authentication failed after 25s. The access key may need more time to propagate — try: aws sts get-caller-identity --profile default"
-    fi
-    sleep 5
-  done
-  echo "  ✓ Persistent default profile configured ($DEFAULT_USER)"
-  echo "    If you lose your session, your CLI will automatically use this profile."
+if [ -z "$lab_default_ak" ] || [ -z "$lab_default_sk" ]; then
+  fail "Empty credentials for iamws-lab-default. Check terraform outputs."
 fi
+
+aws configure set aws_access_key_id "$lab_default_ak" --profile default
+aws configure set aws_secret_access_key "$lab_default_sk" --profile default
+aws configure set region "$REGION" --profile default
+echo "  ✓ Default profile configured (iamws-lab-default)"
+echo "    If you lose your session, your CLI will automatically use this profile."
 
 # ============================================================================
 # Final — Validation summary
@@ -396,19 +371,20 @@ check() {
   fi
 }
 
-check "terraform"    "terraform version"
-check "pmapper"      "pmapper --help"
-check "awspx"        "awspx --help"
-check "ssm plugin"   "command -v session-manager-plugin"
-check "default profile" "aws sts get-caller-identity --profile default"
+check "terraform"           "terraform version"
+check "pmapper"             "pmapper --help"
+check "awspx"               "awspx --help"
+check "ssm plugin"          "command -v session-manager-plugin"
+check "lab-default profile" "aws sts get-caller-identity --profile iamws-lab-default"
+check "default profile"     "aws sts get-caller-identity --profile default"
 
 IAMWS_COUNT=$(aws configure list-profiles 2>/dev/null | grep -c iamws || true)
 TOTAL=$((TOTAL + 1))
-if [ "$IAMWS_COUNT" -eq 6 ]; then
-  echo "  ✓ exercise profiles ($IAMWS_COUNT/6)"
+if [ "$IAMWS_COUNT" -eq 7 ]; then
+  echo "  ✓ workshop profiles ($IAMWS_COUNT/7)"
   PASS=$((PASS + 1))
 else
-  echo "  ✗ exercise profiles ($IAMWS_COUNT/6)"
+  echo "  ✗ workshop profiles ($IAMWS_COUNT/7)"
 fi
 
 echo ""
