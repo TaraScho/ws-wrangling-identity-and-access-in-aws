@@ -168,3 +168,124 @@ The boundary is correctly denying the escalation action.
 - AWS `simulate-principal-policy` is a great tool to verify boundary-based defenses.
 
 ## Additional Controls for Scenario 2: Add Condition Key requiring MFA
+
+In Scenario 2's defense (Part D), you eliminated the `:root` trust by naming the admin principal directly. That alone blocks `iamws-role-assumer-user` from assuming the role, but it leaves one weakness: an attacker who compromises the admin's long-term access keys can assume the role with no additional challenge.
+
+Layer an MFA condition on top of the principal restriction. Now an attacker needs the right identity *and* an active MFA-authenticated session — a defense-in-depth pattern that defeats stolen-key replay.
+
+### Part A: Add the MFA condition to the trust policy
+
+Run all defense steps as your admin identity.
+
+**Step 1: Confirm the starting state of the trust policy**
+
+```bash
+aws iam get-role --role-name iamws-privileged-admin-role \
+  --query 'Role.AssumeRolePolicyDocument' --output json
+```
+
+Expected output (the Scenario 2 defense already restricted the principal — there is no `Condition` block yet):
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [{
+        "Effect": "Allow",
+        "Principal": { "AWS": "arn:aws:iam::767397689800:user/<your-admin-identity>" },
+        "Action": "sts:AssumeRole"
+    }]
+}
+```
+
+**Step 2: Update the trust policy to require MFA**
+
+```bash
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+ADMIN_ROLE_ARN=$(aws sts get-caller-identity --query Arn --output text)
+
+aws iam update-assume-role-policy \
+  --role-name iamws-privileged-admin-role \
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Principal": {"AWS": "'$ADMIN_ROLE_ARN'"},
+      "Action": "sts:AssumeRole",
+      "Condition": {
+        "Bool": { "aws:MultiFactorAuthPresent": "true" }
+      }
+    }]
+  }'
+```
+
+What this adds:
+1. **Condition keys evaluate per-request context:** `aws:MultiFactorAuthPresent` is a global condition key AWS sets to `true` only when the caller authenticated with MFA in this session.
+1. **`Bool` operator matches the key's type:** Using the wrong operator (for example `StringEquals`) silently fails to match — the statement won't apply, and the request falls through to an implicit deny.
+1. **Defense in depth:** Layered with the Scenario 2 principal restriction — an attacker would need both the right identity *and* an active MFA session.
+
+### Part B: Verify the Remediation
+
+**Step 1: Attempt to assume the role without MFA — confirm it's blocked**
+
+Run as the admin identity itself (default profile). Long-term access keys carry no MFA context in the session, so the condition fails even though the admin *is* the trusted principal:
+
+```bash
+aws sts assume-role \
+  --role-arn arn:aws:iam::${ACCOUNT_ID}:role/iamws-privileged-admin-role \
+  --role-session-name no-mfa-test
+```
+
+Expected output:
+```
+An error occurred (AccessDenied) when calling the AssumeRole operation:
+User: arn:aws:iam::767397689800:user/<your-admin-identity>
+is not authorized to perform: sts:AssumeRole on resource:
+arn:aws:iam::767397689800:role/iamws-privileged-admin-role
+```
+
+> [!NOTE]
+> The admin identity *is* the trusted principal in this trust policy — the principal restriction from Scenario 2 is *not* what blocked this request. The denial comes from the new `aws:MultiFactorAuthPresent` condition: the calling session has no MFA context, so the condition evaluates `false` and the statement doesn't apply.
+
+**Step 2: Verify with `simulate-principal-policy`**
+
+Pass `aws:MultiFactorAuthPresent` as a context entry and observe how the decision flips:
+
+```bash
+aws iam simulate-principal-policy \
+  --policy-source-arn $ADMIN_ROLE_ARN \
+  --action-names sts:AssumeRole \
+  --resource-arns arn:aws:iam::${ACCOUNT_ID}:role/iamws-privileged-admin-role \
+  --context-entries ContextKeyName=aws:MultiFactorAuthPresent,ContextKeyValues=false,ContextKeyType=boolean \
+  --query 'EvaluationResults[0].EvalDecision'
+```
+
+Expected output:
+```
+"implicitDeny"
+```
+
+Now re-run with the MFA context set to `true`:
+
+```bash
+aws iam simulate-principal-policy \
+  --policy-source-arn $ADMIN_ROLE_ARN \
+  --action-names sts:AssumeRole \
+  --resource-arns arn:aws:iam::${ACCOUNT_ID}:role/iamws-privileged-admin-role \
+  --context-entries ContextKeyName=aws:MultiFactorAuthPresent,ContextKeyValues=true,ContextKeyType=boolean \
+  --query 'EvaluationResults[0].EvalDecision'
+```
+
+Expected output:
+```
+"allowed"
+```
+
+> [!NOTE]
+> Because we passed `--resource-arns`, the simulator evaluates the role's trust policy (a resource-based policy) against the action — that's how the trust policy condition gets exercised here. `--context-entries` lets you test condition behavior without provisioning a real MFA device.
+
+### What You Learned
+
+- **Condition keys** add per-request context to authorization — `Principal` says *who*, `Action`/`Resource` say *what*, `Condition` says *under what circumstances*.
+- `aws:MultiFactorAuthPresent` is a **global condition key**: it's available in every request's context regardless of which service is being called.
+- Conditions enable **defense in depth**: layered with principal scoping and resource scoping, a single compromise (such as leaked long-term keys) is no longer sufficient to escalate.
+- The companion key `aws:MultiFactorAuthAge` (used with `NumericLessThan`) further bounds *how recently* MFA was performed — useful when long-lived sessions are a risk.
+- `simulate-principal-policy` with `--context-entries` lets you validate condition behavior end-to-end without setting up MFA hardware.
