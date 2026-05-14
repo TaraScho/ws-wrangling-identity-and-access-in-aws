@@ -41,25 +41,40 @@ step_banner() {
 # ============================================================================
 # OS / architecture detection
 # ============================================================================
-# Sets OS_NAME (linux|darwin) and OS_ARCH (amd64|arm64). Bails on Windows /
-# unsupported OSes — iam-recon does not ship Windows binaries today, so those
-# learners need to use the provided lab VM.
+# Sets:
+#   OS_NAME          linux|darwin           (used by Terraform/SSM downloads)
+#   OS_ARCH          amd64|arm64            (used by Terraform/SSM/.deb)
+#   IAM_RECON_OS     linux|macos            (iam-recon release asset naming)
+#   IAM_RECON_ARCH   x86_64|aarch64         (iam-recon release asset naming)
+#
+# Bails on Windows / unsupported OSes — iam-recon does not ship Windows
+# binaries today, so those learners need to use the provided lab VM.
 
 case "$(uname -s)" in
   Linux*)
     OS_NAME="linux"
-    OS_ARCH="amd64"  # Workshop VM and most laptops are x86_64; ARM Linux is uncommon for this workshop
+    IAM_RECON_OS="linux"
     ;;
   Darwin*)
     OS_NAME="darwin"
-    case "$(uname -m)" in
-      arm64) OS_ARCH="arm64" ;;
-      x86_64) OS_ARCH="amd64" ;;
-      *) fail "Unsupported macOS architecture: $(uname -m)" ;;
-    esac
+    IAM_RECON_OS="macos"
     ;;
   *)
     fail "Unsupported OS: $(uname -s). iam-recon only ships Linux and macOS binaries — use the provided lab VM for this workshop."
+    ;;
+esac
+
+case "$(uname -m)" in
+  x86_64|amd64)
+    OS_ARCH="amd64"
+    IAM_RECON_ARCH="x86_64"
+    ;;
+  arm64|aarch64)
+    OS_ARCH="arm64"
+    IAM_RECON_ARCH="aarch64"
+    ;;
+  *)
+    fail "Unsupported CPU architecture: $(uname -m). iam-recon ships x86_64 and aarch64 binaries only."
     ;;
 esac
 
@@ -110,25 +125,77 @@ echo "  ✓ $TOOLS_DIR/bin ready"
 # ============================================================================
 # Step 2 — Install iam-recon
 # ============================================================================
+# Upstream: https://github.com/andrewkrug/iam-recon
+# Release assets (current as of v0.1.0):
+#   iam-recon-linux-x86_64        raw binary
+#   iam-recon-linux-aarch64       raw binary
+#   iam-recon-macos-x86_64        raw binary
+#   iam-recon-macos-aarch64       raw binary
+#   iam-recon_amd64.deb           Debian/Ubuntu package
+#   iam-recon_arm64.deb           Debian/Ubuntu package
+# The repo also acts as a Homebrew tap (andrewkrug/iam-recon).
+#
+# Install strategy (try the cleanest path first, fall back as needed):
+#   1. Homebrew tap     — if `brew` is on PATH (macOS and most Linux laptops).
+#   2. .deb package     — Linux + dpkg + sudo (workshop VM is Debian/Ubuntu).
+#   3. Raw release bin  — everyone else; drop into $TOOLS_DIR/bin.
+
 step_banner "Step 2: Installing iam-recon"
+
+IAM_RECON_REPO="andrewkrug/iam-recon"
+IAM_RECON_RELEASE_BASE="https://github.com/${IAM_RECON_REPO}/releases/latest/download"
+
+install_iam_recon_brew() {
+  echo "  Homebrew detected — installing from the upstream tap..."
+  if brew list iam-recon &>/dev/null; then
+    echo "  ✓ iam-recon already installed via Homebrew"
+    return 0
+  fi
+  if ! brew tap 2>/dev/null | grep -qx "andrewkrug/iam-recon"; then
+    brew tap andrewkrug/iam-recon "https://github.com/${IAM_RECON_REPO}" \
+      || return 1
+  fi
+  brew install andrewkrug/iam-recon/iam-recon || return 1
+}
+
+install_iam_recon_deb() {
+  local deb_url="${IAM_RECON_RELEASE_BASE}/iam-recon_${OS_ARCH}.deb"
+  echo "  Downloading iam-recon_${OS_ARCH}.deb from ${deb_url} ..."
+  curl -fsSL -o /tmp/iam-recon.deb "$deb_url" || return 1
+  sudo dpkg -i /tmp/iam-recon.deb >/dev/null || { rm -f /tmp/iam-recon.deb; return 1; }
+  rm -f /tmp/iam-recon.deb
+}
+
+install_iam_recon_binary() {
+  local bin_url="${IAM_RECON_RELEASE_BASE}/iam-recon-${IAM_RECON_OS}-${IAM_RECON_ARCH}"
+  echo "  Downloading iam-recon binary (${IAM_RECON_OS}/${IAM_RECON_ARCH}) from ${bin_url} ..."
+  curl -fsSL "$bin_url" -o "$TOOLS_DIR/bin/iam-recon" || return 1
+  chmod +x "$TOOLS_DIR/bin/iam-recon"
+}
 
 if command -v iam-recon &>/dev/null; then
   echo "  ✓ iam-recon already installed: $(command -v iam-recon)"
 else
-  # TODO: replace yourorg with the real iam-recon GitHub repo once published.
-  # Release asset naming assumed to follow: iam-recon-${OS_NAME}-${OS_ARCH}
-  # The iam-recon README lists pre-built binaries for linux/amd64, darwin/amd64,
-  # darwin/arm64 — adjust the URL pattern below to match the real release asset
-  # names when known.
-  IAM_RECON_URL="https://github.com/yourorg/iam-recon/releases/latest/download/iam-recon-${OS_NAME}-${OS_ARCH}"
-  echo "  Downloading iam-recon (${OS_NAME}/${OS_ARCH}) from $IAM_RECON_URL ..."
-  curl -fsSL "$IAM_RECON_URL" -o "$TOOLS_DIR/bin/iam-recon" \
-    || fail "Failed to download iam-recon. See https://github.com/yourorg/iam-recon for install instructions."
-  chmod +x "$TOOLS_DIR/bin/iam-recon"
+  installed=0
+  if command -v brew &>/dev/null; then
+    install_iam_recon_brew && installed=1
+  fi
+  if [ "$installed" -eq 0 ] && [ "$OS_NAME" = "linux" ] \
+      && command -v dpkg &>/dev/null && command -v sudo &>/dev/null; then
+    install_iam_recon_deb && installed=1
+  fi
+  if [ "$installed" -eq 0 ]; then
+    install_iam_recon_binary && installed=1
+  fi
+  [ "$installed" -eq 1 ] \
+    || fail "All iam-recon install methods failed. See https://github.com/${IAM_RECON_REPO}/releases for manual install."
 
+  hash -r 2>/dev/null || true
+  command -v iam-recon &>/dev/null \
+    || fail "iam-recon installed but not found on PATH. Check $TOOLS_DIR/bin or your Homebrew prefix."
   iam-recon --help &>/dev/null \
     || fail "iam-recon installed but 'iam-recon --help' failed."
-  echo "  ✓ iam-recon installed"
+  echo "  ✓ iam-recon installed: $(command -v iam-recon)"
 fi
 
 # ============================================================================
