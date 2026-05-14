@@ -237,4 +237,4 @@ Expected output: `DENY user/iamws-secrets-reader-user cannot call secretsmanager
 
 ---
 
-**Next:** [Optional Scenario: PutGroupPolicy](../scenario-optional-putgrouppolicy/instructions.md) — Self-escalation via group policy manipulation
+**Next:** [Lab 9: Cleanup](../lab-9-cleanup/README.md) — Tear down lab infrastructure when you're done with the workshop.

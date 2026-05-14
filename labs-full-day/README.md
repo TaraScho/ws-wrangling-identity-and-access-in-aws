@@ -9,23 +9,23 @@ Use this README as your playbook for the day. Each row links to the instructions
 | Time | Block | Materials |
 | :--- | :--- | :--- |
 | 9:00 – 9:40 | Welcome and Lesson 1: Introduction to IAM | [Slides](https://docs.google.com/presentation/d/1z6z0WDAdlMDVyiDvu2jmfG_a9le--AM1/edit?usp=drive_link&rtpof=true&sd=true) |
-| 9:40 – 10:00 | **Lab 1: Lab Setup** | [Instructions](./lab-setup-instructions.md)<br>[Slides](https://docs.google.com/presentation/d/1QSUtnibKrYtv2-eEfJ6SlNwzUcLFZsH_/edit?usp=drive_link&rtpof=true&sd=true) |
-| 10:00 – 10:15 | **Lab 2: Self Privilege Escalation via CreatePolicyVersion** | [Instructions](./scenario-1a-create-policy-version.md)<br>[Slides](https://docs.google.com/presentation/d/1ylN5bXFtflkiJqCH5vUmW65AMs7BiF38/edit?usp=drive_link&rtpof=true&sd=true) |
-| 10:15 – 10:30 | **Lab 3: Trust Policy Abuse** | [Instructions](./scenario-2-trust-policy-root.md)<br>[Slides](https://docs.google.com/presentation/d/1AKED2urhbXi8-3XEkMBafXSWQh8xd-jI/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true) |
+| 9:40 – 10:00 | **Lab 1: Lab Setup** | [Instructions](./lab-1-setup/README.md)<br>[Slides](https://docs.google.com/presentation/d/1QSUtnibKrYtv2-eEfJ6SlNwzUcLFZsH_/edit?usp=drive_link&rtpof=true&sd=true) |
+| 10:00 – 10:15 | **Lab 2: Self Privilege Escalation via CreatePolicyVersion** | [Instructions](./lab-2-create-policy-version/README.md)<br>[Slides](https://docs.google.com/presentation/d/1ylN5bXFtflkiJqCH5vUmW65AMs7BiF38/edit?usp=drive_link&rtpof=true&sd=true) |
+| 10:15 – 10:30 | **Lab 3: Trust Policy Abuse** | [Instructions](./lab-3-trust-policy-abuse/README.md)<br>[Slides](https://docs.google.com/presentation/d/1AKED2urhbXi8-3XEkMBafXSWQh8xd-jI/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true) |
 | 10:30 – 10:45 | Morning Break | — |
 | 10:45 – 11:15 | Lesson 2: Guardrails and Validation | [Slides](https://docs.google.com/presentation/d/1cj7xJw6OB84WSbeuTEKOsdmcVRb_T8Ea/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true) |
-| 11:15 – 11:30 | **Lab 4: Permissions Boundaries & Condition Keys** | [Instructions](./apply-permissions-boundaries-and-condition-keys.md) |
+| 11:15 – 11:30 | **Lab 4: Permissions Boundaries & Condition Keys** | [Instructions](./lab-4-permissions-boundaries-and-condition-keys/README.md) |
 | 11:30 – 12:00 | Lesson 3: Kiro for Cloud Security | [Slides](https://docs.google.com/presentation/d/1edug67aDepcrbPXwHDflaaVrhGOW1JXO/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true) |
 | 12:00 – 1:00 | Lunch | — |
 | 1:00 – 1:30 | Knowledge Refresh Game | Join link _(tbd)_ |
-| 1:30 – 2:00 | **Lab 5: Hardening IAM Policies with Kiro + MCP** | [Instructions](./kiro-iam-hardening/instructions.md) |
-| 2:00 – 2:30 | **Lab 6: Privilege Escalation via iam:PassRole (EC2)** | [Instructions](./scenario-3-passrole-ec2/attack.md)<br>[Slides](https://docs.google.com/presentation/d/1Ooka3AlRLppVj8w9ca1XsPK_pUjnicFs/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true) |
+| 1:30 – 2:00 | **Lab 5: Hardening IAM Policies with Kiro + MCP** | [Instructions](./lab-5-kiro-iam-hardening/README.md) |
+| 2:00 – 2:30 | **Lab 6: Privilege Escalation via iam:PassRole (EC2)** | [Instructions](./lab-6-passrole-ec2/README.md)<br>[Slides](https://docs.google.com/presentation/d/1Ooka3AlRLppVj8w9ca1XsPK_pUjnicFs/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true) |
 | 2:30 – 2:45 | Afternoon Break | — |
-| 2:45 – 3:15 | **Lab 7: Privilege Escalation via Lambda UpdateFunctionCode** | [Instructions](./scenario-4-lambda-updatefunctioncode/lambda-updatefunctioncode.md)<br>[Slides](https://docs.google.com/presentation/d/1BeZ_opM_Vfi3_4FLvwP1wbrllA55d4sc/edit?usp=drive_link&rtpof=true&sd=true) |
-| 2:45 – 3:15 | **Lab 8: Lambda Secret Extraction** | [Instructions](./scenario-5-lambda-secrets/instructions.md)<br>[Slides](https://docs.google.com/presentation/d/1JegcTECdlsICUz6EngVbF5HSdzz5aB-W/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true) |
+| 2:45 – 3:15 | **Lab 7: Privilege Escalation via Lambda UpdateFunctionCode** | [Instructions](./lab-7-lambda-updatefunctioncode/README.md)<br>[Slides](https://docs.google.com/presentation/d/1BeZ_opM_Vfi3_4FLvwP1wbrllA55d4sc/edit?usp=drive_link&rtpof=true&sd=true) |
+| 2:45 – 3:15 | **Lab 8: Lambda Secret Extraction** | [Instructions](./lab-8-lambda-secrets/README.md)<br>[Slides](https://docs.google.com/presentation/d/1JegcTECdlsICUz6EngVbF5HSdzz5aB-W/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true) |
 | 3:15 – 3:30 | Lecture: IAM Spy and Provers | Slides _(tbd)_ |
 | 3:30 – 4:30 | Flex / Knowledge Game 2 | Join link _(tbd)_ |
-| 4:30 – 5:00 | Environment Clean up and Wrap-up | [Cleanup Instructions](./lab-cleanup-instructions.md) |
+| 4:30 – 5:00 | **Lab 9: Environment Cleanup and Wrap-up** | [Instructions](./lab-9-cleanup/README.md) |
 
 ## Resources
 

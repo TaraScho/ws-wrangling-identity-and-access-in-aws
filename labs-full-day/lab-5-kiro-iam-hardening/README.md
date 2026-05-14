@@ -19,7 +19,7 @@ In this lab you'll use **Kiro**, the spec-driven agentic IDE from AWS, to harden
 | **Kiro IDE** | Installed from [kiro.dev](https://kiro.dev) — free tier is sufficient |
 | **AWS CLI v2** | Configured with credentials for your training account |
 | **MCP servers** | AWS IaC MCP Server and AWS Documentation MCP Server enabled in Kiro |
-| **Workshop repo** | Cloned at `~/workshop` (from the lab setup) so you can reference `labs-full-day/kiro-iam-hardening/assets/` |
+| **Workshop repo** | Cloned at `~/workshop` (from the lab setup) so you can reference `labs-full-day/lab-5-kiro-iam-hardening/assets/` |
 
 ## Lab scenario
 
@@ -89,7 +89,7 @@ echo "Account: $ACCOUNT_ID"
 
 ```bash
 aws cloudformation deploy \
-  --template-file ~/workshop/labs-full-day/kiro-iam-hardening/assets/insecure-role.yaml \
+  --template-file ~/workshop/labs-full-day/lab-5-kiro-iam-hardening/assets/insecure-role.yaml \
   --stack-name IAM-Hardening-Lab-Insecure \
   --capabilities CAPABILITY_NAMED_IAM \
   --tags Environment=Training Lab=KiroIAMHardening
@@ -99,7 +99,7 @@ aws cloudformation deploy \
 
 ```bash
 aws cloudformation deploy \
-  --template-file ~/workshop/labs-full-day/kiro-iam-hardening/assets/analytics-bucket.yaml \
+  --template-file ~/workshop/labs-full-day/lab-5-kiro-iam-hardening/assets/analytics-bucket.yaml \
   --stack-name IAM-Hardening-Lab-Bucket \
   --capabilities CAPABILITY_IAM \
   --tags Environment=Training Lab=KiroIAMHardening

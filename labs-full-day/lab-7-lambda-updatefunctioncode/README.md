@@ -313,4 +313,4 @@ DENY user/iamws-lambda-developer-user cannot call lambda:UpdateFunctionCode with
 
 ---
 
-**Next:** [Scenario 5: Lambda Secrets](../scenario-5-lambda-secrets/instructions.md) — Credential access via Lambda environment variables
+**Next:** [Lab 8: Lambda Secret Extraction](../lab-8-lambda-secrets/README.md) — Credential access via Lambda environment variables

@@ -105,7 +105,7 @@ The Lambda's environment variables will be reset (or the function deleted) by `t
 
 ### Permissions boundaries / condition keys exercise
 
-If you ran `apply-permissions-boundaries-and-condition-keys.md`, remove the boundary and the policy it references (a user with an attached permissions boundary cannot be deleted, and the managed policy itself was created out of band):
+If you ran [Lab 4: Permissions Boundaries & Condition Keys](../lab-4-permissions-boundaries-and-condition-keys/README.md), remove the boundary and the policy it references (a user with an attached permissions boundary cannot be deleted, and the managed policy itself was created out of band):
 
 ```bash
 aws iam delete-user-permissions-boundary \
@@ -164,7 +164,7 @@ If `terraform destroy` errors out, the most likely cause is a Step 1 artifact le
 
 If your setup ran on the lab VM (i.e., temporary credentials were detected), `bsides-setup.sh` created an out-of-band IAM user named `iamws-lab-default` with `AdministratorAccess` attached. This user is **not** managed by Terraform and must be deleted manually. Skip this step if you ran setup on your own laptop with long-lived credentials.
 
-You can't run the deletion as `iamws-lab-default` itself — switch back to the credentials you originally used in [Step 2 of lab setup](lab-setup-instructions.md#step-2-authenticate-to-your-sandbox-account-in-the-terminal) (the sandbox identity that bootstrapped the workshop), or any other admin identity in the account.
+You can't run the deletion as `iamws-lab-default` itself — switch back to the credentials you originally used in [Step 2 of Lab 1: Lab Setup](../lab-1-setup/README.md#step-2-authenticate-to-your-sandbox-account-in-the-terminal) (the sandbox identity that bootstrapped the workshop), or any other admin identity in the account.
 
 ```bash
 # Detach the AdministratorAccess managed policy

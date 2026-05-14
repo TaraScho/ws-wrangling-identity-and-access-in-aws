@@ -284,6 +284,6 @@ Navigate with the arrow keys. Press `q` to quit. The TUI is purely a viewing too
 
 ---
 
-## You're ready for Scenario 1a
+## You're ready for Lab 2
 
-You have an authenticated workstation, the lab infrastructure deployed into your sandbox, the IAM graph built and toured, and a mental map of where each scenario starts. Continue to [Scenario 1a — CreatePolicyVersion](scenario-1a-create-policy-version.md).
+You have an authenticated workstation, the lab infrastructure deployed into your sandbox, the IAM graph built and toured, and a mental map of where each lab starts. Continue to [Lab 2 — Self Privilege Escalation via CreatePolicyVersion](../lab-2-create-policy-version/README.md).
