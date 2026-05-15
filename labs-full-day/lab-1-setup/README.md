@@ -286,8 +286,3 @@ iam-recon --tui --account $ACCOUNT_ID
 
 Navigate with the arrow keys. Press `q` to quit. The TUI is purely a viewing tool — every action it surfaces is available as a regular CLI command, so feel free to skip it.
 
----
-
-## You're ready for Lab 2
-
-You have an authenticated workstation, the lab infrastructure deployed into your sandbox, the IAM graph built and toured, and a mental map of where each lab starts. Continue to [Lab 2 — Self Privilege Escalation via CreatePolicyVersion](../lab-2-create-policy-version/README.md).

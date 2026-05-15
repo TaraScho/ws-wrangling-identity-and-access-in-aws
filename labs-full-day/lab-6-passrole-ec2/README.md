@@ -1,3 +1,5 @@
+# Lab 6: PassRole + EC2 — New PassRole via Missing `iam:PassedToService` Condition
+
 ## Scenario 3: PassRole + EC2 — New PassRole via Missing `iam:PassedToService` Condition
 
 **Category:** New PassRole
@@ -306,7 +308,7 @@ aws iam simulate-principal-policy \
 
 Expected output: `"implicitDeny"` — the EC2 PassRole path is blocked.
 
-**Step 3: Verify with iam-recon**
+**Step 2: Verify with iam-recon**
 
 Refresh the graph:
 

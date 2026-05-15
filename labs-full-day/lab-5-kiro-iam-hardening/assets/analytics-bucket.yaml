@@ -108,12 +108,6 @@ Resources:
 
           yeehaw partner -- you took the easter egg route.
 
-          if you're reading this it means:
-            1. the hardened role you built actually permits s3:GetObject
-               on this bucket under the reports/ prefix, with TLS
-            2. it permits sts:AssumeRole onto the instance profile
-               (or you're being naughty and reading as an admin)
-
           ride on. -- the iam wranglers
           """
 

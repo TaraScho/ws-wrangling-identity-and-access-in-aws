@@ -1,3 +1,5 @@
+# Lab 8: Lambda Secret Extraction — Credential Access via GetFunctionConfiguration
+
 ## Scenario 5: Lambda Environment Variables — Credential Access via GetFunctionConfiguration
 
 **Category:** Credential Access
@@ -34,17 +36,7 @@ This is the only iam-recon surface that catches this scenario — there is no pa
 > [!NOTE]
 > `iam-recon analysis` does **not** flag Lambda functions with sensitive environment variable names — iam-recon has no env-var or secrets detector (verified 2026-05-12). `pathfinding` similarly has no Credential Access category. This scenario illustrates a real coverage gap in IAM graph tools: they model permission escalation, not data exposure. The right move is to check for dangerous permissions with `argquery`, then enumerate functions with env vars via the AWS CLI.
 
-### Part B: Understand the Attack
-
-- **Category:** Credential Access
-- **Required permission:** `lambda:GetFunctionConfiguration`
-- **Root cause:** Secrets stored in plaintext Lambda environment variables
-- **Impact:** Access to credentials for external systems — databases, APIs, admin consoles
-
-> [!NOTE]
-> This is different from the previous scenarios — you're not escalating IAM permissions. The attacker's AWS permissions never change, and there are no crown jewels in S3 to claim. But don't underestimate it: in production, exposed database passwords, API keys, and admin credentials often grant access to data just as sensitive as anything in S3 — customer PII, SaaS admin consoles, or credentials for external systems that AWS IAM can't gate at all.
-
-### Part C: Exploit the Vulnerability
+### Part B: Exploit the Vulnerability
 
 **Step 1: Confirm your identity**
 
@@ -93,7 +85,7 @@ Expected output:
 
 Five plaintext secrets — production DB credentials, an API key, and admin credentials — exposed with a single API call.
 
-### Part D: Apply the Defense
+### Part C: Apply the Defense
 
 The fix is architectural, not a policy edit. Move the secrets to AWS Secrets Manager, grant the Lambda's execution role access to only that secret, and replace the plaintext env vars with a pointer.
 
@@ -167,7 +159,7 @@ def handler(event, context):
     return {'statusCode': 200, 'body': 'Connected'}
 ```
 
-### Part E: Verify the Remediation
+### Part D: Verify the Remediation
 
 **Step 1: Re-run the disclosure — confirm only the pointer is visible**
 
@@ -230,11 +222,6 @@ Expected output: `DENY user/iamws-secrets-reader-user cannot call secretsmanager
 ### What You Learned
 
 - Lambda environment variables are visible to **anyone** with `lambda:GetFunctionConfiguration` — they are not secure storage.
-- This is **credential access**, not IAM privilege escalation. The attacker's permissions never change; the fix is eliminating the exposed data.
 - Moving secrets to Secrets Manager provides proper access control (scoped per-secret ARN), automatic rotation, encryption at rest, and audit logging via CloudTrail `GetSecretValue` events.
 - iam-recon has no env-var or credential exposure detector — `argquery` on the specific read action is the only iam-recon surface for this scenario.
 - The Secrets Manager `Resource` ARN should end with `*` to handle the random suffix Secrets Manager appends.
-
----
-
-**Next:** [Lab 9: Cleanup](../lab-9-cleanup/README.md) — Tear down lab infrastructure when you're done with the workshop.

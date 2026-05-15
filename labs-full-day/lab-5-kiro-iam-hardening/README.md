@@ -11,7 +11,7 @@ In this lab you'll use **Kiro**, the spec-driven agentic IDE from AWS, to harden
 - **IAM Policy Simulator:** Testing policies before and after hardening to verify they permit required access and deny everything else.
 - **Condition keys:** Using `aws:SourceAccount`, `aws:PrincipalOrgID`, `aws:SecureTransport`, `aws:RequestedRegion`, and `s3:prefix` to tighten access.
 
-## Prerequisites
+## Lab Components
 
 | Requirement | Details |
 | :---- | :---- |
@@ -105,7 +105,7 @@ aws cloudformation deploy \
   --tags Environment=Training Lab=KiroIAMHardening
 ```
 
-The bucket stack creates `analytics-data-${ACCOUNT_ID}` with TLS-only access, and seeds `reports/quarterly.txt` with content you'll only be able to read if you do the hardening right. We won't open it in the main lab path — it's an end-of-day easter egg.
+The bucket stack creates `analytics-data-${ACCOUNT_ID}` with TLS-only access, and seeds `reports/quarterly.txt`.
 
 ### Step B.4: See just how dangerous the role is
 
@@ -189,7 +189,7 @@ Kiro should produce requirements like these. Verify each one:
 | **REQ-009** | All resources tagged with `Environment` and `Lab` keys |
 
 > [!NOTE]
-> If Kiro missed the permissions boundary or the `s3:prefix` condition, add them manually. The spec is your contract — anything not in the spec may not end up in the generated code.
+> If Kiro missed the permissions boundary or the `s3:prefix` condition, add them manually or ask Kiro to refine the spec. The spec is your contract — anything not in the spec may not end up in the generated code.
 
 ### Step C.3: Review design and tasks, then generate
 
@@ -336,9 +336,6 @@ aws iam simulate-principal-policy \
 
 The insecure role allows all three actions. The secure role denies them. This is the tangible result of the hardening work.
 
-> [!NOTE]
-> **Easter egg — afternoon flex time only.** The `analytics-data-${ACCOUNT_ID}` bucket has a `reports/quarterly.txt` object seeded with something fun. If your hardened role really does what the spec asked, you should be able to attach the instance profile to a quick EC2 instance (or use `sts:AssumeRole` after granting yourself trust permission) and `aws s3 cp s3://analytics-data-${ACCOUNT_ID}/reports/quarterly.txt -`. We're not walking you through it; figure out the path yourself.
-
 ## Part F — Discussion & review
 
 Reflect on the lab and discuss the following with your group or instructor.
@@ -352,7 +349,7 @@ Reflect on the lab and discuss the following with your group or instructor.
 - **Permissions boundaries:** How would you use permissions boundaries across an organization? Could you enforce them via SCPs or CloudFormation StackSets?
 - **Continuous compliance:** How would you detect if someone re-attaches a wildcard policy after you've hardened the role? Think about AWS Config rules, IAM Access Analyzer, and Kiro automation hooks.
 
-### What you learned
+### What You Learned
 
 - An `Action: *` / `Resource: *` policy is the most dangerous configuration in AWS IAM. Treat it as a critical finding.
 - Kiro's spec-driven workflow forces you to enumerate exactly what access is needed before writing policy JSON — this is the discipline that prevents over-permissioning.

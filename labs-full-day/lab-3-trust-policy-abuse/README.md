@@ -1,3 +1,5 @@
+# Lab 3: Trust Policy Abuse — Privilege Escalation via Permissive Role Trust
+
 ## Scenario 2: Trust Policy `:root` — Privilege Escalation via Permissive Role Trust
 
 **Category:** Principal Access
@@ -71,7 +73,7 @@ Visit [pathfinding.cloud/paths/sts-001](https://pathfinding.cloud/paths/sts-001)
 > [!NOTE]
 > This attack requires two things: 
 > 1. The starting user/role must have permission to do the `sts:AssumeRole` action and 
->2. The **target role's trust policy** must allow the starting user/role to assume the role. Remember that trust policies are resource policies attached to the role itself. They control who can assume the role, independent of what the caller's identity policy allows.
+> 1. The **target role's trust policy** must allow the starting user/role to assume the role. Remember that trust policies are resource policies attached to the role itself. They control who can assume the role, independent of what the caller's identity policy allows.
 
 ### Part C: Exploit the Vulnerability
 
@@ -281,7 +283,7 @@ The STS edge to `iamws-privileged-admin-role` is gone. `argquery --preset prives
 
 ### What You Learned
 
-- How to escalate privileges from a lesser priviledged IAM user to a priviledged Admin role
+- How to escalate privileges from a lesser privileged IAM user to a privileged Admin role
 - Trust policies that specify `:root` trust every principal in the account — not just the AWS root user.
 - For `sts:AssumeRole` to work, the starting identity must have `sts:AssumeRole` permissions and the target role must have a trust policy that includes the starting identity as a principal
 - Any principal that can assume an IAM role can use the full set of permissions attached to that role.

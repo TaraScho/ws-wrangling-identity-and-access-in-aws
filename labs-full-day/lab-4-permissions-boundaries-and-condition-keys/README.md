@@ -1,3 +1,5 @@
+# Lab 4: Permissions Boundaries & Condition Keys
+
 ## Remediate Scenario 1: CreatePolicyVersion — Self-Escalation via Policy Version Manipulation
 
 **Category:** Self-Escalation
@@ -108,7 +110,7 @@ What this boundary does:
 1. **Explicit Deny on escalation actions:** `DenyPrivilegeEscalation` blocks the specific IAM mutations that enable self-escalation.
 1. **Self-protection:** `iam:DeleteUserPermissionsBoundary` is in the deny list — the user can't remove the boundary itself.
 
-### Part E: Verify the Remediation
+### Part B: Verify the Remediation
 
 **Step 1: Re-run the exploit as the attacker — confirm it's blocked**
 
@@ -149,7 +151,7 @@ fatal error: An error occurred (403) when calling the HeadObject operation: Forb
 aws iam simulate-principal-policy \
   --policy-source-arn arn:aws:iam::${ACCOUNT_ID}:user/iamws-policy-developer-user \
   --action-names iam:CreatePolicyVersion \
-  --query 'EvaluationResults[0].EvalDecision' \
+  --query 'EvaluationResults[0].EvalDecision'
 ```
 
 Expected output:

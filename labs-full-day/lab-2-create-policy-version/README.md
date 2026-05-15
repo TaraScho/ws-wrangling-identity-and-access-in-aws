@@ -1,3 +1,5 @@
+# Lab 2: CreatePolicyVersion — Self-Escalation via Policy Version Manipulation
+
 ## Scenario 1: CreatePolicyVersion — Self-Escalation via Policy Version Manipulation
 
 **Category:** Self-Escalation

@@ -22,9 +22,9 @@ Use this README as your playbook for the day. Each row links to the instructions
 | 2:00 – 2:30 | **Lab 6: Privilege Escalation via iam:PassRole (EC2)** | [Instructions](./lab-6-passrole-ec2/README.md)<br>[Slides](https://docs.google.com/presentation/d/1Ooka3AlRLppVj8w9ca1XsPK_pUjnicFs/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true) |
 | 2:30 – 2:45 | Afternoon Break | — |
 | 2:45 – 3:15 | **Lab 7: Privilege Escalation via Lambda UpdateFunctionCode** | [Instructions](./lab-7-lambda-updatefunctioncode/README.md)<br>[Slides](https://docs.google.com/presentation/d/1BeZ_opM_Vfi3_4FLvwP1wbrllA55d4sc/edit?usp=drive_link&rtpof=true&sd=true) |
-| 2:45 – 3:15 | **Lab 8: Lambda Secret Extraction** | [Instructions](./lab-8-lambda-secrets/README.md)<br>[Slides](https://docs.google.com/presentation/d/1JegcTECdlsICUz6EngVbF5HSdzz5aB-W/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true) |
 | 3:15 – 3:30 | Lesson: IAM Spy and Provers | [Slides](https://docs.google.com/presentation/d/1tnTvKrRj0TfFRdA_I7mn8OMqKx0s8ll-/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true) |
-| 3:30 – 4:30 | Flex / Knowledge Game 2 | N/A |
+| 3:30 – 4:00 | **Lab 8: Lambda Secret Extraction** | [Instructions](./lab-8-lambda-secrets/README.md)<br>[Slides](https://docs.google.com/presentation/d/1JegcTECdlsICUz6EngVbF5HSdzz5aB-W/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true) |
+| 4:00 – 4:30 | Flex / Knowledge Game 2 | N/A |
 | 4:30 – 5:00 | **Lab 9: Environment Cleanup and Wrap-up** | [Instructions](./lab-9-cleanup/README.md) |
 
 ## Resources

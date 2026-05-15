@@ -1,3 +1,5 @@
+# Lab 7: Lambda UpdateFunctionCode — Existing PassRole via Function Hijacking
+
 ## Scenario 4: Lambda UpdateFunctionCode — Existing PassRole via Function Hijacking
 
 **Category:** Existing PassRole
@@ -50,9 +52,6 @@ Expected output:
 ```
 ALLOW user/iamws-lambda-developer-user can call lambda:UpdateFunctionCode with *
 ```
-
-> [!NOTE]
-> `argquery --preset privesc` will **not** flag this user. iam-recon's Lambda edge checker short-circuits when the principal lacks `iam:PassRole` — since `iamws-lambda-developer-user` has `lambda:*` but no `iam:PassRole`, the existing-function path is never evaluated. Pathfinding catches it because it maps on dangerous permissions directly. This is the same edge-vs-path gap as Scenario 1.
 
 **In the interactive visualization:** search for `lambda-developer-user`. The node is **blue** (not orange) because no edge checker flagged it. The `iamws-privileged-lambda-role` is red (Admin). There's no edge between them in the graph — but pathfinding's output shows the path exists.
 
@@ -146,7 +145,7 @@ aws lambda update-function-code \
   --profile iamws-lambda-developer-user
 ```
 
-No error — the developer updated a function they shouldn't be able to touch.
+No error — the developer updated the function code.
 
 **Step 8: Invoke the function**
 
@@ -218,7 +217,7 @@ aws iam detach-user-policy \
 
 **Step 3: Wait for AWS IAM permission changes to take effect**
 
-AWS keeps a short-lived permission cache (~3–5 minutes) for Lambda. Without the wait, the original attack still succeeds even with zero policies attached — AWS returns the cached authorization. `simulate-principal-policy` correctly returns `implicitDeny` immediately, so use it to demo the change while waiting for the live deny to land.
+Wait a short amount of time for the IAM changes to propagate. 
 
 ```bash
 sleep 60
@@ -249,22 +248,7 @@ User: arn:aws:iam::767397689800:user/iamws-lambda-developer-user
 is not authorized to perform: lambda:UpdateFunctionCode on resource: ...iamws-privileged-lambda
 ```
 
-**Step 3: Confirm the crown jewels are still safe**
-
-```bash
-ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text \
-  --profile iamws-lambda-developer-user)
-
-aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
-  --profile iamws-lambda-developer-user
-```
-
-Expected output:
-```
-fatal error: An error occurred (403) when calling the HeadObject operation: Forbidden
-```
-
-**Step 4: Verify with iam-recon**
+**Step 3: Verify with iam-recon**
 
 Refresh the graph:
 
@@ -310,7 +294,3 @@ DENY user/iamws-lambda-developer-user cannot call lambda:UpdateFunctionCode with
 - **Resource constraints** (`dev-*` ARN pattern) are the fix. The naming convention between dev and privileged functions becomes the security boundary.
 - AWS IAM has a short-lived permission cache (~3–5 minutes) for Lambda — wait before verifying live, or use `simulate-principal-policy` for immediate offline confirmation.
 - iam-recon's `argquery --preset privesc` does not catch this attack family. Pathfinding is the correct discovery and verification surface.
-
----
-
-**Next:** [Lab 8: Lambda Secret Extraction](../lab-8-lambda-secrets/README.md) — Credential access via Lambda environment variables
