@@ -149,7 +149,7 @@ done
 ## Step 3: Destroy the Terraform-deployed infrastructure
 
 ```bash
-TERRAFORM_DIR="$(git rev-parse --show-toplevel)/labs-two-hour-workshop/terraform"
+TERRAFORM_DIR="$(git rev-parse --show-toplevel)/labs-full-day/terraform"
 
 # Workshop VMs ship with either Terraform or OpenTofu — pick whichever is present.
 TF_BIN=$(command -v terraform || command -v tofu) \

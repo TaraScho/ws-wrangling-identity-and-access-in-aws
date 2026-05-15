@@ -87,8 +87,7 @@ step_banner "Step 0: Checking prerequisites"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 TOOLS_DIR="$REPO_DIR/tools"
-# Terraform is shared with the 2-hour workshop.
-TERRAFORM_DIR="$REPO_DIR/labs-two-hour-workshop/terraform"
+TERRAFORM_DIR="$SCRIPT_DIR/terraform"
 
 echo "  OS              : $OS_NAME/$OS_ARCH"
 echo "  Repo directory  : $REPO_DIR"
