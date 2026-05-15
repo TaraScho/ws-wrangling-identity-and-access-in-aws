@@ -52,6 +52,9 @@ You can run the labs inside the **pre-built workshop image** (recommended) **or*
    > [!NOTE]
    > **Windows users:** the own-laptop path is Mac/Linux only — `iam-recon` doesn't ship a Windows binary. Use the pre-built workshop image above; its VirtualBox variant runs on Windows.
 
+   > [!TIP]
+   > Prefer to install everything by hand instead of running the setup script? Follow [Lab 0 — Prerequisites: Self-Service Setup](../lab-0-prerequisites/lab-0-prerequisites.md) and then jump straight to [Step 6](#step-6-privilege-escalation-categories) of this lab.
+
 ---
 
 ## Step 2: Authenticate to your sandbox account in the terminal
