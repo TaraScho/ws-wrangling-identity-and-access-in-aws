@@ -211,9 +211,19 @@ fi
 # ============================================================================
 step_banner "Step 3: Installing Terraform"
 
-if terraform version &>/dev/null; then
-  echo "  ✓ Terraform already installed: $(terraform version -json 2>/dev/null | python3 -c 'import sys,json; print(json.load(sys.stdin)["terraform_version"])' 2>/dev/null || terraform version 2>&1 | head -1)"
+# Detect a *working* terraform/tofu. The check is deliberately strict: a snap
+# stub on the VM exits 0 with garbage like "snap   2.75.2", which fools a bare
+# `terraform version` probe and then blows up later with `error: unknown flag 'c'`
+# when snap mis-parses `terraform -chdir=...`. Require the real version banner.
+tf_version_output=$(terraform version 2>/dev/null | head -1 || true)
+if [[ "$tf_version_output" =~ ^(Terraform|OpenTofu)\ v ]]; then
+  echo "  ✓ Terraform already installed: $tf_version_output"
 else
+  if [ -n "$tf_version_output" ]; then
+    echo "  ⚠ Found a 'terraform' on PATH but it doesn't look like Terraform:"
+    echo "      $tf_version_output"
+    echo "    Installing a real Terraform binary into $TOOLS_DIR/bin (takes precedence on PATH)."
+  fi
   TERRAFORM_VERSION="1.14.4"
   TF_ZIP="terraform_${TERRAFORM_VERSION}_${OS_NAME}_${OS_ARCH}.zip"
   echo "  Downloading Terraform ${TERRAFORM_VERSION} (${OS_NAME}/${OS_ARCH})..."
@@ -225,8 +235,13 @@ else
   chmod +x "$TOOLS_DIR/bin/terraform"
   rm -f "/tmp/${TF_ZIP}"
 
-  terraform version &>/dev/null \
-    || fail "Terraform installed but 'terraform version' failed."
+  # Drop the tofu shim if we previously installed it — we now have real terraform.
+  unset -f terraform 2>/dev/null || true
+  hash -r 2>/dev/null || true
+
+  tf_version_output=$(terraform version 2>/dev/null | head -1 || true)
+  [[ "$tf_version_output" =~ ^Terraform\ v ]] \
+    || fail "Terraform installed but 'terraform version' did not return a valid banner (got: $tf_version_output)."
   echo "  ✓ Terraform ${TERRAFORM_VERSION} installed"
 fi
 
