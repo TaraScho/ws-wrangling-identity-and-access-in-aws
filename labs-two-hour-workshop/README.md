@@ -27,8 +27,8 @@ For detailed setup and validation steps, see the [Prerequisites Lab](lab-0-prere
 
 ### Module 1: Layin' Down the Law (60 minutes)
 
-**Lecture 1 -- The Sheriff's Handbook (20 minutes)**
-- [Slides](https://docs.google.com/presentation/d/15IF92MF-tpn5OzeFu3IypIMvFDcgvSF2/edit?usp=sharing&ouid=109780715844951499863&rtpof=true&sd=true)
+**Lecture 1 -- Layin' Down the Law (20 minutes)**
+- [Slides](https://docs.google.com/presentation/d/10avUgOwMM_BZrE1QrgqeJEJj5obpMK1M/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true)
 - IAM fundamentals and the PARC model
 - Policy evaluation logic
 - 5 privilege escalation categories
@@ -42,8 +42,8 @@ For detailed setup and validation steps, see the [Prerequisites Lab](lab-0-prere
 
 ### Module 2: Fencin' the Frontier (60 minutes)
 
-**Lecture 2 -- Guardrails and What Goes Wrong (15 minutes)**
-- [Slides](https://docs.google.com/presentation/d/1r08sa_l1YvCGMGzZG_ptN2Za6kc8aWnn/edit?usp=sharing&ouid=109780715844951499863&rtpof=true&sd=true)
+**Lecture 2 -- Fencin' the Frontier (15 minutes)**
+- [Slides](https://docs.google.com/presentation/d/1D9Pwnl9d6jgFkgIvQVw-Bp-z2mLXSHT_/edit?usp=drive_link&ouid=109780715844951499863&rtpof=true&sd=true)
 - Permissions boundaries, trust policies, condition keys, SCPs
 
 **Lab 2 -- Remediate and Verify (45 minutes)**
