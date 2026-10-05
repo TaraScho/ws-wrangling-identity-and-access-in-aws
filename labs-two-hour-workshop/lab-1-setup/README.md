@@ -1,4 +1,4 @@
-# Full-Day Workshop — Lab Setup
+# Two-Hour Workshop — Lab Setup
 
 ## Overview
 
@@ -47,7 +47,7 @@ You can run the labs inside the **pre-built workshop image** (recommended) **or*
    > [!TIP]
    > The image is several GB and the download + import takes 10–20 minutes on a typical connection. Start it well before the workshop kicks off — ideally the night before — so you're not racing the agenda.
 
-1. **Your own Mac or Linux laptop.** Make sure [AWS CLI v2](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) is installed (`aws --version` should print v2.x). The setup script in Step 4 will install everything else if it's missing — see [what the script installs](#what-the-script-installs) below.
+1. **Your own Mac or Linux laptop.** You just need valid credentials for your sandbox AWS account — the setup script in Step 4 installs every tool it needs (including the AWS CLI) if it's missing. See [what the script installs](#what-the-script-installs) below.
 
    > [!NOTE]
    > **Windows users:** the own-laptop path is Mac/Linux only — `iam-recon` doesn't ship a Windows binary. Use the pre-built workshop image above; its VirtualBox variant runs on Windows.
@@ -96,7 +96,7 @@ cd ~/workshop
 ## Step 4: Run the setup script
 
 ```bash
-bash labs-full-day/bsides-setup.sh
+bash labs-two-hour-workshop/setup.sh
 ```
 
 The script:
@@ -120,6 +120,7 @@ The script only installs a tool if it isn't already on your `PATH`. Inside the w
 
 | Tool                        | Source                                                                                  | Why                                                                       |
 |-----------------------------|-----------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| AWS CLI v2                  | [AWS CLI install guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) | Used by every lab — Terraform calls it, profile config, and all exploit/defense steps |
 | Terraform                   | [HashiCorp releases](https://releases.hashicorp.com/terraform/)                         | Deploys the vulnerable lab infrastructure                                 |
 | `iam-recon`                 | [iam-recon releases](https://github.com/andrewkrug/iam-recon/releases)                     | Builds the IAM graph used by every scenario                               |
 | SSM Session Manager plugin  | [AWS S3](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) | Lets `aws ssm start-session` connect to the lab EC2 instance in Scenario 3 |
@@ -162,7 +163,7 @@ Before you start identifying vulnerabilities, get familiar with how the security
 
 ## Step 7: Meet `iam-recon`
 
-`iam-recon` is a single-binary Rust tool that builds a directed graph of every IAM user, role, group, and policy in an AWS account, then maps the resulting privileges to the 66+ known attack paths catalogued by pathfinding.cloud. It is the only recon tool used in the full-day workshop — it consolidates the capabilities of the older Python tools you may have seen (PMapper, awspx) into one binary, plus first-class pathfinding.cloud integration.
+`iam-recon` is a single-binary Rust tool that builds a directed graph of every IAM user, role, group, and policy in an AWS account, then maps the resulting privileges to the 66+ known attack paths catalogued by pathfinding.cloud. It is the only recon tool used in this workshop — it consolidates the capabilities of the older Python tools you may have seen (PMapper, awspx) into one binary, plus first-class pathfinding.cloud integration.
 
 What you can do with it:
 

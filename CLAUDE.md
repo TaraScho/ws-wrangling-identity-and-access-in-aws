@@ -8,11 +8,7 @@ This repo hosts a hands-on AWS IAM security workshop teaching identity and acces
 
 Two workshop variants live side-by-side, each with its own labs and Terraform tree:
 - **Full-day** (`labs-full-day/`) — 9 labs covering setup, CreatePolicyVersion, trust policy abuse, permissions boundaries + condition keys, Kiro + MCP policy hardening, PassRole (EC2), Lambda UpdateFunctionCode, Lambda secret extraction, and cleanup.
-- **Two-hour** (`labs-two-hour-workshop/`) — condensed version with two labs:
-  1. Layin' Down the Law (Lecture 1): IAM fundamentals (PARC model, policy evaluation, 5 privilege escalation categories)
-  1. Layin' Down the Law (Lab 1): Identify and exploit misconfigurations using awspx, pmapper, and pathfinding.cloud
-  1. Fencin' the Frontier (Lecture 2): Security guardrails (permissions boundaries, trust policies, condition keys, SCPs)
-  1. Fencin' the Frontier (Lab 2): Remediate and verify using guardrails (permissions boundaries, resource constraints, trust policies, condition keys)
+- **Two-hour** (`labs-two-hour-workshop/`) — the same labs as the full-day version minus the Kiro + MCP lab, renumbered contiguously (8 labs): setup, CreatePolicyVersion, trust policy abuse, permissions boundaries + condition keys, PassRole (EC2), Lambda UpdateFunctionCode, Lambda secret extraction, and cleanup. Recon uses `iam-recon` (not pmapper/awspx). The attack-and-defense labs (4–7) are worked as far as the group gets in the time available.
 
 The top-level `README.md` is a landing page that routes visitors to one of the two workshop READMEs.
 
@@ -25,14 +21,10 @@ The top-level `README.md` is a landing page that routes visitors to one of the t
   - `bsides-setup.sh` - Workshop setup script
   - `terraform/` - Learner-facing Terraform to deploy vulnerable IAM infrastructure
     - Modules: `cloudformation`, `ec2`, `iam-principals`, `lambda`, `s3`
-- `labs-two-hour-workshop/` - Condensed 2-hour workshop
-  - `lab-0-prerequisites/` - Prerequisites and setup instructions (tool validation, Terraform deployment)
-  - `lab-1-layin-down-the-law/` - Lab 1: Identifying and exploiting IAM misconfigurations
-    - `exercises/` - Individual exercise files (exercises 2–7), linked from `lab-1-instructions.md`
-  - `lab-2-fencin-the-frontier/` - Lab 2: Remediating IAM misconfigurations with guardrails
-    - `exercises/` - Individual exercise files (exercises 1–6), linked from `lab-2-instructions.md`
-  - `wwhf-setup.sh` - Workshop setup script
-  - `terraform/` - Learner-facing Terraform to deploy vulnerable IAM infrastructure
+- `labs-two-hour-workshop/` - Condensed 2-hour workshop (8 labs)
+  - `lab-0-prerequisites/`, `lab-1-setup/`, `lab-2-create-policy-version/`, `lab-3-trust-policy-abuse/`, `lab-4-permissions-boundaries-and-condition-keys/`, `lab-5-passrole-ec2/`, `lab-6-lambda-updatefunctioncode/`, `lab-7-lambda-secrets/`, `lab-8-cleanup/`
+  - `setup.sh` - Workshop setup script
+  - `terraform/` - Learner-facing Terraform to deploy vulnerable IAM infrastructure (identical to the full-day tree)
     - Modules: `cloudformation`, `ec2`, `iam-principals`, `lambda`, `s3`
 
 ### Reference Repositories (gitignored, local only)

@@ -31,7 +31,7 @@ Use this README as your playbook for the day. Each row links to the instructions
 
 ### Tools Used in This Workshop
 
-- [iam-recon](https://github.com/yourorg/iam-recon) — Single-binary Rust tool that builds an offline graph of IAM users, roles, groups, and policies and maps them to the attack paths catalogued by pathfinding.cloud. Used in every recon-and-verify step of the workshop.
+- [iam-recon](https://github.com/andrewkrug/iam-recon) — Single-binary Rust tool that builds an offline graph of IAM users, roles, groups, and policies and maps them to the attack paths catalogued by pathfinding.cloud. Used in every recon-and-verify step of the workshop.
 - [pathfinding.cloud](https://pathfinding.cloud) — AWS IAM privilege escalation path database with interactive visualizations. Every iam-recon finding links back to a path here.
 - [Kiro](https://kiro.dev) — AI-native IDE used in Lab 5 to harden IAM policies.
 - [AWS Labs MCP servers](https://github.com/awslabs/mcp) — Model Context Protocol servers from AWS Labs, including the [AWS IaC MCP server](https://awslabs.github.io/mcp/servers/aws-iac-mcp-server) used with Kiro in Lab 5.
