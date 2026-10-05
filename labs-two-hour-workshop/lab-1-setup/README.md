@@ -42,7 +42,9 @@ You'll run the labs from a terminal on your own machine or workstation. The setu
 - **macOS or Linux users** — you're already good to go. Both the Intel/AMD (`x86_64`) and Apple Silicon / ARM (`aarch64`) architectures are supported.
 - **Windows users** — some workshop tools don't ship a Windows build (`iam-recon` has no native Windows binary), so we suggest running the labs inside a VM or setting up **WSL2 with Ubuntu**, which gives you a real Linux environment on your Windows machine. See Microsoft's [WSL2 install guide](https://learn.microsoft.com/en-us/windows/wsl/install) to set it up, then run every command in this workshop from your Ubuntu shell.
 
-It's your choice whether to work from your main OS directly or from a dedicated VM. If you'd rather keep the workshop's tooling and AWS credentials isolated from your day-to-day machine, you can use your virtualization tool of choice such as VirtualBox or Tart. More information about virtualization tools workshop attendees have used in the past is available [in this document](https://docs.google.com/document/d/1bLbSTfht3QR-hxu03v33n1x-NdZ5XBlaXHqSjfx8-gY/edit?usp=sharing). **If you are not already familiar with virtualization and virtual machines, we do not recommend **
+It's your choice whether to work from your main OS directly or from a dedicated VM. If you'd rather keep the workshop's tooling and AWS credentials isolated from your day-to-day machine, you can use your virtualization tool of choice such as VirtualBox or Tart. More information about virtualization tools workshop attendees have used in the past is available [in this document](https://docs.google.com/document/d/1bLbSTfht3QR-hxu03v33n1x-NdZ5XBlaXHqSjfx8-gY/edit?usp=sharing). 
+
+**If you are not already familiar with virtualization and virtual machines, we do not recommend trying to set up a VM. We will provide clean up instructions for your local machine at the end of the workshop.**
 
 ---
 
