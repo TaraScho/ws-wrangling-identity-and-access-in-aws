@@ -8,4 +8,4 @@ Hands-on AWS IAM security workshop on privilege escalation and remediation.
 ## Pick Your Workshop
 
 - **[Full-Day Workshop](labs-full-day/README.md)** — 9 labs, ~7 hours. Deeper coverage including Kiro + MCP policy hardening and Lambda secret extraction.
-- **[Two-Hour Workshop](labs-two-hour-workshop/README.md)** — 2 labs, ~2 hours. Condensed version: identify privesc paths, then remediate with guardrails.
+- **[Two-Hour Workshop](labs-two-hour-workshop/README.md)** — ~2 hours. The same labs as the full-day version minus the Kiro hardening lab, worked as far as the group gets: identify privesc paths with `iam-recon`, exploit them, then remediate with guardrails.
