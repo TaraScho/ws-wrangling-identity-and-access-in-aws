@@ -4,7 +4,7 @@
 
 Before the first attack scenario you'll set up your workstation, deploy the vulnerable lab infrastructure into your own AWS sandbox, and build the IAM recon graph that every scenario in the workshop will query. By the end of this setup you will have:
 
-- A workstation (pre-built workshop image **or** your own Mac/Linux laptop) with every workshop dependency installed
+- A workstation with every workshop dependency installed by the setup script
 - Six intentionally-vulnerable IAM users, plus a least-privilege `iamws-scanner-user` for read-only recon and an `iamws-lab-default` admin user for setup/debugging/cleanup, all deployed into your AWS sandbox
 - An [`iam-recon`](https://github.com/andrewkrug/iam-recon) graph of the account, ready to query offline
 - A working mental model of the five privilege escalation categories used by [pathfinding.cloud](https://pathfinding.cloud)
@@ -35,31 +35,20 @@ In that sandbox account you'll need an IAM identity (user or role) with permissi
 
 ---
 
-## Step 1: Set up your workstation
+## Step 1: Check your system requirements
 
-You can run the labs inside the **pre-built workshop image** (recommended) **or** on your own Mac/Linux laptop. Both paths use the same setup script in Step 4.
+You'll run the labs from a terminal on your own machine. The setup script in Step 4 installs every workshop tool for you, so all you need to bring is a supported operating system.
 
-1. **Pre-built workshop image (recommended).** A self-contained Ubuntu 24.04 VM with every workshop dependency (AWS CLI v2, Terraform, `iam-recon`, the SSM Session Manager plugin) pre-installed. Three variants are published — VirtualBox for Intel/AMD Macs, Windows, and Linux; Tart for Apple Silicon Macs; Docker for headless use. You download and run it locally — no instructor-hosted infrastructure.
+- **macOS or Linux** — you're already good to go. Both the Intel/AMD (`x86_64`) and Apple Silicon / ARM (`aarch64`) architectures are supported.
+- **Windows** — our tooling doesn't ship a Windows build (`iam-recon` has no native Windows binary), so we suggest running the labs inside **WSL2 with Ubuntu**, which gives you a real Linux environment on your Windows machine. See Microsoft's [WSL2 install guide](https://learn.microsoft.com/en-us/windows/wsl/install) to set it up, then run every command in this workshop from your Ubuntu shell.
 
-   1. Follow [Securing the Cloud — Workstation Image](https://docs.google.com/document/d/1bLbSTfht3QR-hxu03v33n1x-NdZ5XBlaXHqSjfx8-gY/edit?usp=sharing) end to end. It walks you through picking the right variant, downloading and verifying the image, importing it, starting the VM, and signing in to Apache Guacamole.
-   1. Once you're in the **virtual_desktop** Guacamole connection (signed in as the `ubuntu` user, with passwordless `sudo` and the full security toolchain on `$PATH`), come back here and continue with Step 2.
-
-   > [!TIP]
-   > The image is several GB and the download + import takes 10–20 minutes on a typical connection. Start it well before the workshop kicks off — ideally the night before — so you're not racing the agenda.
-
-1. **Your own Mac or Linux laptop.** You just need valid credentials for your sandbox AWS account — the setup script in Step 4 installs every tool it needs (including the AWS CLI) if it's missing. See [what the script installs](#what-the-script-installs) below.
-
-   > [!NOTE]
-   > **Windows users:** the own-laptop path is Mac/Linux only — `iam-recon` doesn't ship a Windows binary. Use the pre-built workshop image above; its VirtualBox variant runs on Windows.
-
-   > [!TIP]
-   > Prefer to install everything by hand instead of running the setup script? Follow [Lab 0 — Prerequisites: Self-Service Setup](../lab-0-prerequisites/lab-0-prerequisites.md) and then jump straight to [Step 6](#step-6-privilege-escalation-categories) of this lab.
+It's your choice whether to work from your main OS directly or from a dedicated VM — the setup script runs the same either way. If you'd rather keep the workshop's intentionally-vulnerable tooling and credentials isolated from your day-to-day machine, a throwaway Linux VM (or WSL2 on Windows) is a reasonable way to do that.
 
 ---
 
 ## Step 2: Authenticate to your sandbox account in the terminal
 
-Whether you're inside the workshop image or on your own laptop, you need an authenticated terminal session against **your own sandbox account** before running the setup script.
+You need an authenticated terminal session against **your own sandbox account** before running the setup script.
 
 1. Generate or retrieve credentials for the IAM identity you described in [Before you begin](#before-you-begin--bring-your-own-aws-sandbox). The [AWS CLI authentication docs](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-authentication.html) walk through every supported method (IAM Identity Center, long-lived access keys, AssumeRole, etc.) — pick whichever your sandbox uses.
 
@@ -79,9 +68,6 @@ Whether you're inside the workshop image or on your own laptop, you need an auth
 
    The returned `Arn` should match the IAM identity in your sandbox account.
 
-> [!TIP]
-> **In the workshop image (Guacamole):** copying and pasting between your host and the guest can be tricky. See the [Guacamole clipboard docs](https://guacamole.apache.org/doc/gug/using-guacamole.html) for OS-specific tips.
-
 ---
 
 ## Step 3: Clone the workshop repository
@@ -95,6 +81,19 @@ cd ~/workshop
 
 ## Step 4: Run the setup script
 
+### What the script installs
+
+The script only installs a tool if it isn't already on your `PATH`, so if you pre-installed any of these it'll simply skip them. Expect any of the following to be installed if missing:
+
+| Tool                        | Source                                                                                  | Why                                                                       |
+|-----------------------------|-----------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
+| AWS CLI v2                  | [AWS CLI install guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) | Used by every lab — Terraform calls it, profile config, and all exploit/defense steps |
+| Terraform (v1.14.x)         | [HashiCorp install guide](https://developer.hashicorp.com/terraform/install) ([OpenTofu](https://opentofu.org/) works too) | Deploys the vulnerable lab infrastructure                                 |
+| `iam-recon`                 | [iam-recon releases](https://github.com/andrewkrug/iam-recon/releases)                     | Builds the IAM graph used by every scenario                               |
+| SSM Session Manager plugin  | [AWS install guide](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) | Lets `aws ssm start-session` connect to the lab EC2 instance in Scenario 3 |
+
+Beyond installing those tools, the script also deploys the lab and wires up your credentials. Run it now:
+
 ```bash
 bash labs-two-hour-workshop/setup.sh
 ```
@@ -102,7 +101,7 @@ bash labs-two-hour-workshop/setup.sh
 The script:
 
 1. Verifies prerequisites (AWS credentials, base Unix tools)
-1. Installs any missing workshop dependencies (see [what the script installs](#what-the-script-installs))
+1. Installs any missing workshop dependencies (the four tools above)
 1. Runs `terraform apply` to deploy the vulnerable lab infrastructure into your sandbox account
 1. Configures AWS CLI profiles for **eight** users — the six intentionally-vulnerable scenario users, `iamws-scanner-user` (a least-privilege read-only identity used for IAM reconnaissance), and `iamws-lab-default` (an admin identity used outside the attack scenarios for setup, debugging, and cleanup). It also mirrors `iamws-lab-default`'s credentials into the unnamed `default` profile so the CLI keeps working if you lose your shell session.
 
@@ -113,17 +112,6 @@ When every check passes you'll see a banner like:
 
 You're ready to start the workshop. Happy hacking!
 ```
-
-### What the script installs
-
-The script only installs a tool if it isn't already on your `PATH`. Inside the workshop image everything is pre-installed, so this step is effectively a no-op verification. On your own laptop, expect any of the following to be installed if missing:
-
-| Tool                        | Source                                                                                  | Why                                                                       |
-|-----------------------------|-----------------------------------------------------------------------------------------|---------------------------------------------------------------------------|
-| AWS CLI v2                  | [AWS CLI install guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) | Used by every lab — Terraform calls it, profile config, and all exploit/defense steps |
-| Terraform                   | [HashiCorp releases](https://releases.hashicorp.com/terraform/)                         | Deploys the vulnerable lab infrastructure                                 |
-| `iam-recon`                 | [iam-recon releases](https://github.com/andrewkrug/iam-recon/releases)                     | Builds the IAM graph used by every scenario                               |
-| SSM Session Manager plugin  | [AWS S3](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) | Lets `aws ssm start-session` connect to the lab EC2 instance in Scenario 3 |
 
 You can re-run the script safely — every install step is idempotent.
 
