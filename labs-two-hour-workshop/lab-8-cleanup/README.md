@@ -126,7 +126,7 @@ rm -f /tmp/boundary-policy.json
 ```bash
 TERRAFORM_DIR="$(git rev-parse --show-toplevel)/labs-two-hour-workshop/terraform"
 
-# Workshop VMs ship with either Terraform or OpenTofu — pick whichever is present.
+# Your machine may have either Terraform or OpenTofu — pick whichever is present.
 TF_BIN=$(command -v terraform || command -v tofu) \
   || { echo "Need terraform or tofu installed"; exit 1; }
 
@@ -169,9 +169,7 @@ done
 
 ## Step 4 (optional): Workstation cleanup
 
-This step is for **own-laptop** runs only. **If you used the pre-built workshop image, skip ahead to [Verify a clean account](#verify-a-clean-account)** — the simplest cleanup is to nuke the entire VM. The "Stop / cleanup" section of the [Securing the Cloud — Workstation Image](https://docs.google.com/document/d/1bLbSTfht3QR-hxu03v33n1x-NdZ5XBlaXHqSjfx8-gY/edit?usp=sharing) guide has the exact commands for VirtualBox, Tart, or Docker.
-
-The rest of this step is for laptop runs that want to uninstall what the setup script added.
+This step uninstalls what the setup script added to your machine. If you ran the workshop inside a throwaway VM or WSL2 instance, the simplest cleanup is to delete that environment entirely — otherwise, work through the items below.
 
 At a high level, `setup.sh` may have touched the following on your workstation:
 

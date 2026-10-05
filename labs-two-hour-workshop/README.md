@@ -11,11 +11,10 @@ This two-hour workshop runs the same labs as the full-day version, minus the Kir
 
 You need a sandbox AWS account (**never** production) with permissions to create and manage IAM users, roles, groups, policies, and permissions boundaries; Lambda functions; EC2 instances and security groups; S3 buckets; CloudFormation stacks; and Secrets Manager secrets. `AdministratorAccess` in a sandbox account works.
 
-- **Facilitated participants:** Start at [Lab 1 — Lab Setup](./lab-1-setup/README.md). It runs `setup.sh`, which installs every tool (AWS CLI v2, Terraform, `iam-recon`, the SSM Session Manager plugin), deploys the Terraform infrastructure, and configures all AWS CLI profiles for you. A pre-built workshop VM image is also available — see the Lab 1 README.
-- **Own-laptop / self-service setup:** Follow [Lab 0 — Prerequisites](./lab-0-prerequisites/lab-0-prerequisites.md) to install the tools and deploy the environment by hand, then pick up at Lab 1's recon steps.
+You'll work from a terminal on **macOS or Linux**. The setup script in [Lab 1 — Lab Setup](./lab-1-setup/README.md) installs every tool for you (AWS CLI v2, Terraform, `iam-recon`, the SSM Session Manager plugin), deploys the Terraform infrastructure, and configures all AWS CLI profiles. Start there.
 
 > [!NOTE]
-> Windows is not supported on the own-laptop path — `iam-recon` does not ship a Windows binary. Use the pre-built workshop VM image (the VirtualBox variant runs on Windows).
+> **Windows users:** our tooling doesn't ship a Windows build (`iam-recon` has no native Windows binary). Run the workshop inside [WSL2 with Ubuntu](https://learn.microsoft.com/en-us/windows/wsl/install), which gives you a real Linux environment, then follow the labs from your Ubuntu shell.
 
 ## Agenda
 

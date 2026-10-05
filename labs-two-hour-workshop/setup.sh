@@ -1,12 +1,9 @@
 #!/bin/bash
 # setup.sh — Two-hour workshop setup script
 #
-# Runs on:
-#   - The pre-built workshop image (Linux, every dependency pre-installed)
-#   - A learner's own Mac or Linux laptop (script installs missing dependencies)
-#
-# On a learner's own machine it installs any missing workshop tools — AWS CLI v2,
-# iam-recon, Terraform, and the SSM Session Manager plugin.
+# Runs on a learner's own Mac or Linux machine (including WSL2 with Ubuntu on
+# Windows). It installs any missing workshop tools — AWS CLI v2, iam-recon,
+# Terraform, and the SSM Session Manager plugin.
 #
 # iam-recon is the only recon tool (no pmapper, no awspx Docker), and an extra
 # iamws-scanner-user profile is configured for read-only graph scans.
@@ -61,7 +58,7 @@ case "$(uname -s)" in
     IAM_RECON_OS="macos"
     ;;
   *)
-    fail "Unsupported OS: $(uname -s). iam-recon only ships Linux and macOS binaries — use the pre-built workshop image for this workshop."
+    fail "Unsupported OS: $(uname -s). iam-recon only ships Linux and macOS binaries — on Windows, run this workshop inside WSL2 with Ubuntu (https://learn.microsoft.com/en-us/windows/wsl/install)."
     ;;
 esac
 
@@ -96,9 +93,8 @@ echo "  Tools directory : $TOOLS_DIR"
 echo "  Terraform dir   : $TERRAFORM_DIR"
 echo ""
 
-# Required base commands. Available out-of-the-box inside the workshop image; learners on
-# their own machines may need to install missing entries via their package
-# manager (brew on macOS, apt/yum on Linux).
+# Required base commands. Learners may need to install missing entries via their
+# package manager (brew on macOS, apt/yum on Linux).
 for cmd in git python3 unzip curl jq zip; do
   if ! command -v "$cmd" &>/dev/null; then
     fail "$cmd is not installed. Please install it via your package manager and re-run this script."
@@ -200,7 +196,7 @@ step_banner "Step 1: Checking IaC tooling"
 # could be installed into it); nothing more to set up here.
 echo "  ✓ $TOOLS_DIR/bin ready"
 
-# OpenTofu compatibility: workshop VMs may ship `tofu` instead of `terraform`.
+# OpenTofu compatibility: a learner's machine may have `tofu` instead of `terraform`.
 # tofu is a drop-in fork — same CLI, compatible state — so if tofu is the only
 # IaC binary present, alias the `terraform` command to it for the rest of this
 # script. When real terraform is on PATH, leave it alone.
@@ -224,7 +220,7 @@ fi
 #
 # Install strategy (try the cleanest path first, fall back as needed):
 #   1. Homebrew tap     — if `brew` is on PATH (macOS and most Linux laptops).
-#   2. .deb package     — Linux + dpkg + sudo (workshop VM is Debian/Ubuntu).
+#   2. .deb package     — Linux + dpkg + sudo (e.g. WSL2 Ubuntu / Debian-based).
 #   3. Raw release bin  — everyone else; drop into $TOOLS_DIR/bin.
 
 step_banner "Step 2: Installing iam-recon"
@@ -461,7 +457,7 @@ echo "  ✓ $PROFILE_COUNT exercise profiles configured"
 # iamws-lab-default is created as part of `terraform apply` (managed in the
 # iam-principals module). Here we just mirror its credentials into the
 # unnamed `default` profile so that:
-#   - The AWS CLI keeps working after a Guacamole / SSH session drops the
+#   - The AWS CLI keeps working after a terminal / SSH session drops the
 #     env-var credentials the learner started with.
 #   - Any `aws` command without an explicit --profile flag uses the admin user.
 # The named `iamws-lab-default` profile is already configured in Step 7.

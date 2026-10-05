@@ -2,8 +2,8 @@
 #
 # Two things rely on this user:
 #   1. ~/.aws/credentials [default] is set to its access key, so the AWS CLI
-#      keeps working after a Guacamole session disconnect drops the env-var
-#      credentials the learner started with.
+#      keeps working after a terminal session drops the env-var credentials
+#      the learner started with.
 #   2. ~/.aws/credentials [iamws-lab-default] is also set to its access key, so
 #      lab docs that reference `--profile iamws-lab-default` resolve.
 #
