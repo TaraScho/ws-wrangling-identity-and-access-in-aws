@@ -206,7 +206,7 @@ At a high level, `bsides-setup.sh` may have touched the following on your workst
     rm -rf "$(git rev-parse --show-toplevel)/tools"
     ```
 
-1. **Shell PATH and AWS defaults.** The script appended a `# Workshop tools` block to `~/.bashrc` and `~/.profile` that adds `<repo>/tools/bin` to `PATH` and sets `AWS_DEFAULT_REGION` / `AWS_PAGER`. Open each file and remove the block.
+1. **Shell PATH and AWS defaults.** The script appended a `# Workshop tools` block to `~/.bashrc`, `~/.profile`, and `~/.zshrc` that adds `<repo>/tools/bin` to `PATH` and sets `AWS_DEFAULT_REGION` / `AWS_PAGER`. Open each file and remove the block.
 
 1. **System-installed SSM Session Manager plugin** (Linux only). On Linux the script installed `session-manager-plugin` as a system package via `yum` or `dpkg`. Uninstall it with the matching package manager command (`sudo yum remove session-manager-plugin` or `sudo dpkg -r session-manager-plugin`) if you don't want it sticking around.
 

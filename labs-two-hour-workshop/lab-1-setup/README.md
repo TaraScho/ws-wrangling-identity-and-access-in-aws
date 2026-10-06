@@ -121,11 +121,19 @@ You can re-run the script safely — every install step is idempotent.
 
 ## Step 5: Reload your shell
 
-The setup script added the workshop tools directory to your `PATH`. Reload your current shell so the new entries take effect:
+The setup script added the workshop tools directory to your `PATH` in `~/.bashrc`, `~/.profile`, and `~/.zshrc`. Reload your current shell so the new entries take effect. On macOS the default shell is zsh:
+
+```bash
+source ~/.zshrc
+```
+
+On Linux or WSL2 (bash):
 
 ```bash
 source ~/.bashrc
 ```
+
+Not sure which shell you're in? Run `echo $SHELL`.
 
 ---
 

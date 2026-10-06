@@ -303,7 +303,9 @@ PATH_LINE="export PATH=\"$TOOLS_DIR/bin:\$PATH\""
 REGION_LINE='export AWS_DEFAULT_REGION="us-east-1"'
 PAGER_LINE='export AWS_PAGER=""'
 
-for rcfile in "$HOME/.bashrc" "$HOME/.profile"; do
+# ~/.zshrc covers zsh (the macOS default shell), which reads neither
+# ~/.bashrc nor ~/.profile.
+for rcfile in "$HOME/.bashrc" "$HOME/.profile" "$HOME/.zshrc"; do
   if ! grep -qF "$TOOLS_DIR/bin" "$rcfile" 2>/dev/null; then
     echo "" >> "$rcfile"
     echo "# Workshop tools" >> "$rcfile"
@@ -446,7 +448,8 @@ if [ "$PASS" -eq "$TOTAL" ]; then
   echo ""
   echo "  Run this command to activate the tools in your current session:"
   echo ""
-  echo "    source ~/.bashrc"
+  if [ "$(basename "${SHELL:-}")" = "zsh" ]; then RC_HINT="~/.zshrc"; else RC_HINT="~/.bashrc"; fi
+  echo "    source $RC_HINT"
   echo ""
 else
   echo "=== Setup finished with issues ($PASS/$TOTAL checks passed) ==="
