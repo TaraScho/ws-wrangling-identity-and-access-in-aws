@@ -6,17 +6,23 @@
 **Starting Identity:** `iamws-secrets-reader-user`
 **Target:** Plaintext secrets in `iamws-app-with-secrets` Lambda environment variables
 
-**The Vulnerability:** `iamws-secrets-reader-user` can read Lambda function configurations, which include environment variables. The Lambda function `iamws-app-with-secrets` stores database credentials, API keys, and admin passwords in plaintext environment variables — visible to anyone with `lambda:GetFunctionConfiguration`.
+**The Vulnerability:** 
+- `iamws-secrets-reader-user` can read Lambda function configurations, which include environment variables. 
+- The Lambda function `iamws-app-with-secrets` stores database credentials, API keys, and admin passwords in plaintext environment variables — visible to anyone with `lambda:GetFunctionConfiguration`.
 
-**Real-world scenario:** Storing secrets directly in Lambda environment variables is one of the most common findings in cloud pen tests. Developers do it because it's the path of least resistance — env vars are right there in the console, no extra service to configure. The exposure surface is huge: any IAM principal with `lambda:GetFunctionConfiguration` (commonly handed out to support engineers, on-call rotations, monitoring tools, and "read-only" auditor roles) can dump every secret in plaintext with one API call. And because the secrets are usually credentials for things *outside* AWS — database passwords, SaaS API keys, third-party admin logins — IAM can't gate the blast radius once they're leaked.
+**Real-world scenario:** Storing secrets directly in Lambda environment variables is one of the most common findings in cloud pen tests. Developers do it because it's the path of least resistance. The exposure surface is huge: any IAM principal with `lambda:GetFunctionConfiguration` (commonly handed out to support engineers, on-call rotations, monitoring tools, and "read-only" auditor roles) can dump every secret in plaintext with one API call. And because the secrets are usually credentials for things *outside* AWS — database passwords, SaaS API keys, third-party admin logins — IAM can't gate the blast radius once they're leaked.
+
+### A note on the identities you'll switch between
+
+This lab involves three identities. 
+
+| Identity | What it is | When you use it |
+| --- | --- | --- |
+| `iamws-secrets-reader-user` | The attacker. A "read-only" identity that holds `lambda:GetFunctionConfiguration`. | Parts A, B & D: recon, dumping the secrets, and the re-test |
+| `iamws-lab-default` | Your admin identity (acting as the defender). | Part C: the defense, and refreshing the recon graph |
+| `iamws-app-lambda-role` | The target Lambda's execution role. | Not a profile you switch to — in the defense you grant *it* scoped access to the new secret |
 
 ### Part A: Identify with iam-recon
-
-Build or refresh your iam-recon graph:
-
-```bash
-iam-recon graph create --profile iamws-lab-default
-```
 
 Confirm the attacker user has permission to read Lambda function configurations:
 
@@ -31,10 +37,8 @@ Expected output:
 ALLOW user/iamws-secrets-reader-user can call lambda:GetFunctionConfiguration with *
 ```
 
-This is the only iam-recon surface that catches this scenario — there is no pathfinding or privesc edge for credential access via Lambda env vars.
-
 > [!NOTE]
-> `iam-recon analysis` does **not** flag Lambda functions with sensitive environment variable names — iam-recon has no env-var or secrets detector (verified 2026-05-12). `pathfinding` similarly has no Credential Access category. This scenario illustrates a real coverage gap in IAM graph tools: they model permission escalation, not data exposure. The right move is to check for dangerous permissions with `argquery`, then enumerate functions with env vars via the AWS CLI.
+> This is the only iam-recon surface that catches this scenario — there is no pathfinding or privesc edge for credential access via Lambda env vars.
 
 ### Part B: Exploit the Vulnerability
 
@@ -61,7 +65,7 @@ aws lambda list-functions \
   --output table --profile iamws-secrets-reader-user
 ```
 
-Expected output: `iamws-app-with-secrets` — this function has env vars.
+Expected output includes `iamws-app-with-secrets` — this function has env vars.
 
 **Step 3: Dump the environment variables**
 
@@ -87,7 +91,7 @@ Five plaintext secrets — production DB credentials, an API key, and admin cred
 
 ### Part C: Apply the Defense
 
-The fix is architectural, not a policy edit. Move the secrets to AWS Secrets Manager, grant the Lambda's execution role access to only that secret, and replace the plaintext env vars with a pointer.
+Move the secrets to AWS Secrets Manager, grant the Lambda's execution role permission to read the secrets, and replace the plaintext env vars with a pointer.
 
 Run all defense steps as your admin identity.
 
@@ -107,7 +111,7 @@ aws secretsmanager create-secret \
   }'
 ```
 
-Note the ARN in the output — you'll need the suffix (random characters after `iamws-app-secrets-`) in Step 3.
+Note the ARN in the output — you'll need the suffix (random characters after `iamws-app-secrets-`) in Step 3. This 6-character suffix is applied to the arns for all secret manager secrets. [Learn more here](https://docs.aws.amazon.com/secretsmanager/latest/userguide/whats-in-a-secret.html)
 
 Example output:
 ```json
@@ -117,7 +121,7 @@ Example output:
 }
 ```
 
-**Step 2: Grant the Lambda's execution role access to this secret**
+**Step 2: Grant the Lambda's execution role read access to this secret**
 
 ```bash
 aws iam put-role-policy \
@@ -133,7 +137,7 @@ aws iam put-role-policy \
   }'
 ```
 
-The `Resource` ARN ends with `*` because Secrets Manager appends a random suffix to the secret ARN — without the wildcard, the policy may stop matching after rotation.
+The `Resource` ARN ends with `*` in order to match the random 6 character suffix Secrets Manager adds — without the wildcard, the policy may stop matching after secret rotation.
 
 **Step 3: Replace plaintext env vars with a secret-name reference**
 
@@ -144,6 +148,9 @@ aws lambda update-function-configuration \
 ```
 
 The five plaintext secrets are gone — replaced by a single pointer. The Lambda retrieves the actual values from Secrets Manager at runtime.
+
+> [!NOTE]
+> In this lab, you are using a single pointer for five secrets for simplicity. In your real environments you might find it better to store secrets individually or in better organized groups.
 
 **Conceptual (don't run today):** here's what the Lambda handler code looks like with Secrets Manager:
 
@@ -197,6 +204,12 @@ is not authorized to perform: secretsmanager:GetSecretValue on resource: iamws-a
 The attacker user has no Secrets Manager permissions.
 
 **Step 3: Verify with iam-recon**
+
+Refresh the `iam-recon` graph to reflect the updated policy.
+
+```bash
+iam-recon graph create --profile iamws-lab-default
+```
 
 Confirm the Lambda's execution role can access the secret (using the actual ARN from Step 1 of the defense):
 

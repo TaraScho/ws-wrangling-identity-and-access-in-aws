@@ -68,7 +68,15 @@ You need an authenticated terminal session for your **sandbox AWS account** befo
    aws sts get-caller-identity
    ```
 
-   The returned `Arn` should match the IAM identity in your sandbox account.
+   The returned `Arn` should match the IAM identity in your sandbox account, such as the following example:
+
+   ```
+   {
+    "UserId": "AIDA...",
+    "Account": "<your aws account id>",
+    "Arn": "arn:aws:iam::<your aws account id>:user/iamws-lab-default"
+   }
+   ```
 
 ---
 
@@ -94,7 +102,7 @@ The script only installs a tool if it isn't already on your `PATH`, so if you pr
 | `iam-recon`                 | [iam-recon releases](https://github.com/andrewkrug/iam-recon/releases)                     | Builds the IAM graph used by every scenario                               |
 | SSM Session Manager plugin  | [AWS install guide](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) | Lets `aws ssm start-session` connect to the lab EC2 instance in Scenario 3 |
 
-Beyond installing those tools, the script also deploys the lab and wires up your credentials. Run it now:
+Beyond installing those tools, the script also deploys the lab and configures AWS CLI profiles for several sets of AWS credentials. Run it now:
 
 ```bash
 bash labs-two-hour-workshop/setup.sh
@@ -104,8 +112,27 @@ The script:
 
 1. Verifies prerequisites (AWS credentials, base Unix tools)
 1. Installs any missing workshop dependencies (the four tools above)
-1. Runs `terraform apply` to deploy the vulnerable lab infrastructure into your sandbox account
-1. Configures AWS CLI profiles for **eight** users — the six intentionally-vulnerable scenario users, `iamws-scanner-user` (a least-privilege read-only identity used for IAM reconnaissance), and `iamws-lab-default` (an admin identity used outside the attack scenarios for setup, debugging, and cleanup). It also mirrors `iamws-lab-default`'s credentials into the unnamed `default` profile so the CLI keeps working if you lose your shell session.
+1. Runs `terraform apply` to deploy the intentionally vulnerable AWS IAM users, roles, and resources into your sandbox account
+1. Configures AWS CLI profiles in `~/.aws/credentials` for **eight** IAM users — the six intentionally-vulnerable scenario users, `iamws-scanner-user` (a least-privilege read-only identity used for IAM reconnaissance), and `iamws-lab-default` (an admin identity used outside the attack scenarios for setup, debugging, and cleanup). It also mirrors `iamws-lab-default`'s credentials into the unnamed `default` profile so the CLI keeps working if you lose your shell session.
+
+> [!NOTE]
+> If you already use the `~/.aws/credentials` file to manage profiles in your day to day work, note that this will replace what you currently have configured for your `default` profile, and you will need to change this back to your actual default profile as part of workshop cleanup.
+
+### The profiles the script configures
+
+Each later lab switches between a few of these AWS CLI profiles — one playing the attacker, one playing the defender, and `iamws-scanner-user` for recon. Every lab has its own smaller "A note on the identities you'll switch between" table; this is the full roster they draw from. Lab instructions will show you how to set the identity for a command with the `--profile <name>` flag (or by leaving it off to use the default).
+
+| Profile | What it is | Where it's used |
+| --- | --- | --- |
+| `iamws-lab-default` | Admin identity. Also mirrored into the unnamed `default` profile. | Setup, every lab's defense steps, recon-graph refreshes, and all of cleanup |
+| `iamws-scanner-user` | Least-privilege, read-only identity for reconnaissance. | Building the recon graph (Step 8) and setting `ACCOUNT_ID` |
+| `iamws-policy-developer-user` | Attacker — can rewrite the policy on their own user. | Lab 2 (exploit) and Lab 4 (re-test) — CreatePolicyVersion |
+| `iamws-role-assumer-user` | Attacker — holds `sts:AssumeRole`. | Lab 3 — trust-policy abuse |
+| `iamws-ci-runner-user` | Attacker — has an unscoped `iam:PassRole`. | Lab 5 — PassRole + EC2 |
+| `iamws-lambda-developer-user` | Attacker — can overwrite any Lambda's code. | Lab 6 — Lambda UpdateFunctionCode |
+| `iamws-secrets-reader-user` | Attacker — can read Lambda configurations. | Lab 7 — Lambda secret extraction |
+| `iamws-group-admin-user` | A sixth vulnerable scenario user. | Deployed into the account, but not exploited in the two-hour workshop |
+
 
 When every check passes you'll see a banner like:
 
@@ -196,12 +223,9 @@ Build the graph:
 iam-recon graph create --profile iamws-scanner-user
 ```
 
-> [!NOTE]
-> **Why a dedicated scanner profile?** `iamws-scanner-user` is attached to the AWS-managed `SecurityAudit` policy — read-only access to IAM and every service iam-recon enumerates. Recon is a read-only activity; doing it with a least-privilege identity (instead of an admin profile) is the same principle you'll defend against attackers in Lab 2. Every other workshop scenario uses a scenario-specific exercise profile (e.g., `iamws-policy-developer-user`) for exploitation — never the scanner.
-
 This takes about 30 seconds. Under the hood, iam-recon:
 
-1. Calls `sts:GetCallerIdentity` and `iam:GetAccountAuthorizationDetails` (a single paginated API call that returns every user, role, group, and policy in the account)
+1. Calls `sts:GetCallerIdentity` and `iam:GetAccountAuthorizationDetails` (a single paginated API call that returns every user, role, group, and policy in the AWS account)
 1. Runs nine privilege escalation **edge checkers** — IAM, STS, Lambda, EC2, CodeBuild, CloudFormation, AutoScaling, SSM, SageMaker — and adds a graph edge whenever it finds a chain like "user X can launch an EC2 instance with role Y attached"
 1. Caches every API response to `~/.local/share/iam-recon/<account-id>/`
 
@@ -217,7 +241,7 @@ Graph Data for Account:  <account ID>
 > [!NOTE]
 > Your sandbox account will likely have less nodes and edges, this is just example output.
 
-Set the AWS account ID in your environment so that `iam-recon`.
+Set the AWS account ID in your environment.
 
 ```bash
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text --profile iamws-scanner-user)

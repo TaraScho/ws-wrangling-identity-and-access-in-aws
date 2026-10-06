@@ -1,20 +1,18 @@
 # Wrangling Identity and Access in AWS — Two-Hour Workshop
 
-A condensed, hands-on workshop on AWS IAM privilege escalation and remediation. You'll build an offline graph of a vulnerable AWS account with `iam-recon`, exploit real privilege escalation paths from [pathfinding.cloud](https://pathfinding.cloud), and then harden each one with permissions boundaries, trust-policy scoping, and condition keys.
-
-This two-hour workshop runs the same labs as the full-day version, minus the Kiro hardening lab. The attack-and-defense labs (4–7) are worked **as far as the group gets in the time available** — some participants will go faster than others, and that's expected.
+Two-hour hands-on workshop on AWS IAM concepts and privilege escalation. You'll build an offline graph of a vulnerable AWS account with `iam-recon`, exploit real privilege escalation paths from [pathfinding.cloud](https://pathfinding.cloud), and then harden each one with permissions boundaries, trust-policy scoping, and condition keys.
 
 > [!IMPORTANT]
 > This workshop deploys intentionally vulnerable IAM infrastructure to your AWS account. Do not deploy workshop resources to an account with any production data or workloads. Use a dedicated sandbox account.
 
 ## Prerequisites
 
-You need a sandbox AWS account (**never** production) with permissions to create and manage IAM users, roles, groups, policies, and permissions boundaries; Lambda functions; EC2 instances and security groups; S3 buckets; CloudFormation stacks; and Secrets Manager secrets. `AdministratorAccess` in a sandbox account works.
+You need a sandbox AWS account (**never** production) and an IAM user or role with sufficient permissions to create and manage IAM users, roles, groups, policies, and permissions boundaries; Lambda functions; EC2 instances and security groups; S3 buckets; CloudFormation stacks; and Secrets Manager secrets. 
 
 You'll work from a terminal on **macOS or Linux**. The setup script in [Lab 1 — Lab Setup](./lab-1-setup/README.md) installs every tool for you (AWS CLI v2, Terraform, `iam-recon`, the SSM Session Manager plugin), deploys the Terraform infrastructure, and configures all AWS CLI profiles. Start there.
 
 > [!NOTE]
-> **Windows users:** our tooling doesn't ship a Windows build (`iam-recon` has no native Windows binary). Run the workshop inside [WSL2 with Ubuntu](https://learn.microsoft.com/en-us/windows/wsl/install), which gives you a real Linux environment, then follow the labs from your Ubuntu shell.
+> **Windows users:** our tooling doesn't ship a Windows build (`iam-recon` has no native Windows binary). Many Windows users choose to install [WSL2 with Ubuntu](https://learn.microsoft.com/en-us/windows/wsl/install), which gives you a Linux environment on Windows, then follow the labs from your Ubuntu shell.
 
 ## Agenda
 
@@ -34,7 +32,7 @@ Use this README as your playbook. Each row links to the instructions you'll work
 | **Lab 8: Environment Cleanup and Wrap-up** | [Instructions](./lab-8-cleanup/README.md) |
 
 > [!NOTE]
-> Labs 4–7 are the attack-and-defense core. Work through them in order as far as time allows — the facilitator will call time and move the group to cleanup regardless of how far along everyone is.
+> Labs are designed to be worked through at your own pace. Many attendees do not have time to complete all labs in two hours and that is perfectly fine! You will have ongoing access to the repository and can continue working with the labs at any time. 
 
 ## Resources
 
