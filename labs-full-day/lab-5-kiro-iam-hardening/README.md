@@ -366,3 +366,7 @@ Reflect on the lab and discuss the following with your group or instructor.
 - [IAM best practices](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html) — AWS official IAM security guide
 - [Kiro enterprise governance](https://kiro.dev/blog/enterprise-governance-mcp-and-models/) — admin controls for MCP and model governance
 - [IAM Access Analyzer](https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html) — automated policy analysis
+
+---
+
+**Next:** [Lab 6: Privilege Escalation via iam:PassRole (EC2)](../lab-6-passrole-ec2/README.md)

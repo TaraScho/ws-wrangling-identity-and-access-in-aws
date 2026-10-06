@@ -232,3 +232,7 @@ aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt - \
 ```
 
 The file contents appear — you escalated from developer to effective `AdministratorAccess` by modifying your own policy.
+
+---
+
+**Next:** [Lab 3: Trust Policy Abuse](../lab-3-trust-policy-abuse/README.md)

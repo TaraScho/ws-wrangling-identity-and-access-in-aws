@@ -303,3 +303,7 @@ When you're done with the workshop, tear down everything you created. Run all co
      aws configure set aws_secret_access_key "" --profile "$profile"
    done
    ```
+
+---
+
+**Next:** [Lab 1: Lab Setup](../lab-1-setup/README.md)

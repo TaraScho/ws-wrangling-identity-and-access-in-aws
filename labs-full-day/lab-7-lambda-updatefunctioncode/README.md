@@ -294,3 +294,7 @@ DENY user/iamws-lambda-developer-user cannot call lambda:UpdateFunctionCode with
 - **Resource constraints** (`dev-*` ARN pattern) are the fix. The naming convention between dev and privileged functions becomes the security boundary.
 - AWS IAM has a short-lived permission cache (~3–5 minutes) for Lambda — wait before verifying live, or use `simulate-principal-policy` for immediate offline confirmation.
 - iam-recon's `argquery --preset privesc` does not catch this attack family. Pathfinding is the correct discovery and verification surface.
+
+---
+
+**Next:** [Lab 8: Lambda Secret Extraction](../lab-8-lambda-secrets/README.md)

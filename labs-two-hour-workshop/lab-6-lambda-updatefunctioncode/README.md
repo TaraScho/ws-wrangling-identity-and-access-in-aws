@@ -296,3 +296,7 @@ DENY user/iamws-lambda-developer-user cannot call lambda:UpdateFunctionCode with
 - `lambda:UpdateFunctionCode` with `Resource: "*"` allows hijacking any Lambda function. The attack path never requires `iam:PassRole` — you update existing compute that already has a privileged role attached.
 - **Resource constraints** (`dev-*` ARN pattern) allow you to scope policies using certain namespaces. (This is not a foolproof best practice, just a conceptual example)
 - AWS IAM has a short-lived permission cache (~3–5 minutes) for Lambda — wait before verifying live, or use `simulate-principal-policy` for immediate offline confirmation.
+
+---
+
+**Next:** [Lab 7: Lambda Secret Extraction](../lab-7-lambda-secrets/README.md)

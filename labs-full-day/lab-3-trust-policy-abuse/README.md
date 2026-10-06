@@ -287,3 +287,7 @@ The STS edge to `iamws-privileged-admin-role` is gone. `argquery --preset prives
 - Trust policies that specify `:root` trust every principal in the account — not just the AWS root user.
 - For `sts:AssumeRole` to work, the starting identity must have `sts:AssumeRole` permissions and the target role must have a trust policy that includes the starting identity as a principal
 - Any principal that can assume an IAM role can use the full set of permissions attached to that role.
+
+---
+
+**Next:** [Lab 4: Permissions Boundaries & Condition Keys](../lab-4-permissions-boundaries-and-condition-keys/README.md)

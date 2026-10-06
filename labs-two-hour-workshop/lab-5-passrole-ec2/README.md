@@ -419,3 +419,7 @@ DENY user/iamws-ci-runner-user cannot call iam:PassRole with arn:aws:iam::*:role
 - The `iam:PassedToService` condition key tells AWS which service is allowed to receive the role. Without it, PassRole is a blank check — the user's intended action (Lambda deployment) and the attacker's exploit (EC2 launch) look identical to IAM.
 - Scoping both the Resource (a specific role ARN) and the Condition (a specific service) creates two independent constraints. An attacker would need to pass the exact allowed role *and* pass it to the exact allowed service — defeating either one blocks the path.
 - IAM evaluates every attached policy together and allows a call if any policy permits it — so a tight inline policy is useless while a broad managed policy is still attached. You have to remove the broad grant too.
+
+---
+
+**Next:** [Lab 6: Privilege Escalation via Lambda UpdateFunctionCode](../lab-6-lambda-updatefunctioncode/README.md)

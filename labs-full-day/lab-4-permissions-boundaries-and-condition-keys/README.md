@@ -291,3 +291,7 @@ Expected output:
 - Conditions enable **defense in depth**: layered with principal scoping and resource scoping, a single compromise (such as leaked long-term keys) is no longer sufficient to escalate.
 - The companion key `aws:MultiFactorAuthAge` (used with `NumericLessThan`) further bounds *how recently* MFA was performed — useful when long-lived sessions are a risk.
 - `simulate-principal-policy` with `--context-entries` lets you validate condition behavior end-to-end without setting up MFA hardware.
+
+---
+
+**Next:** [Lab 5: Hardening IAM Policies with Kiro + MCP](../lab-5-kiro-iam-hardening/README.md)

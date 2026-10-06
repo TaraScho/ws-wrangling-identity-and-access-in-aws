@@ -330,3 +330,7 @@ Navigate with the arrow keys. Press `q` to quit. The TUI is purely a viewing too
 ## Lab summary
 
 When you have successfully created the lab resources in your AWS account, and ran the example `iam-recon` commands above, you have successfully completed your lab set up! You are ready to move on to lab 2 and the **Self Privilege Escalation via CreatePolicyVersion** scenario. You are welcome to start working on lab 2 now using the instructions in GitHub. Or you can sit tight and wait for the instructors to introduce lab 2 before you get started.
+
+---
+
+**Next:** [Lab 2: Self Privilege Escalation via CreatePolicyVersion](../lab-2-create-policy-version/README.md)

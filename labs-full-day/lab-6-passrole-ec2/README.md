@@ -370,3 +370,7 @@ Expected output:
 - Scoping both the Resource (a specific role ARN) and the Condition (a specific service) creates two independent constraints. An attacker would need to pass the exact allowed role *and* pass it to the exact allowed service — defeating either one blocks the path.
 - `aws iam simulate-principal-policy` evaluates how IAM would respond to a given API call without making a real request. The `--context-entries` flag is how you supply condition key values — like `iam:PassedToService` — that exist in a real API call but aren't present in a dry-run simulation.
 - Fixing a user's permissions doesn't fix a role's permissions, even when both have the same managed policy attached. IAM evaluates policies per-principal — if multiple principals share a vulnerable policy, you need to audit and remediate each one.
+
+---
+
+**Next:** [Lab 7: Privilege Escalation via Lambda UpdateFunctionCode](../lab-7-lambda-updatefunctioncode/README.md)

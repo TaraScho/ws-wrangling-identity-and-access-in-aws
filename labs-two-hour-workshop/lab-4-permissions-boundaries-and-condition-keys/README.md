@@ -255,3 +255,7 @@ arn:aws:iam::<aws account id>:role/iamws-privileged-admin-role
 - **Condition keys** add per-request context to authorization — `Principal` says *who*, `Action`/`Resource` say *what*, `Condition` says *under what circumstances*.
 - `aws:MultiFactorAuthPresent` is a **global condition key**: it's available in every request's context regardless of which service is being called.
 - Conditions enable **defense in depth**: layered with principal scoping and resource scoping, a single compromise (such as leaked long-term keys) is no longer sufficient to escalate.
+
+---
+
+**Next:** [Lab 5: Privilege Escalation via iam:PassRole (EC2)](../lab-5-passrole-ec2/README.md)

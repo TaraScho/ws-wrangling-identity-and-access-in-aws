@@ -297,3 +297,6 @@ iam-recon --tui --account $ACCOUNT_ID
 
 Navigate with the arrow keys. Press `q` to quit. The TUI is purely a viewing tool — every action it surfaces is available as a regular CLI command, so feel free to skip it.
 
+---
+
+**Next:** [Lab 2: Self Privilege Escalation via CreatePolicyVersion](../lab-2-create-policy-version/README.md)

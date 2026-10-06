@@ -225,3 +225,7 @@ Expected output: `DENY user/iamws-secrets-reader-user cannot call secretsmanager
 - Moving secrets to Secrets Manager provides proper access control (scoped per-secret ARN), automatic rotation, encryption at rest, and audit logging via CloudTrail `GetSecretValue` events.
 - iam-recon has no env-var or credential exposure detector — `argquery` on the specific read action is the only iam-recon surface for this scenario.
 - The Secrets Manager `Resource` ARN should end with `*` to handle the random suffix Secrets Manager appends.
+
+---
+
+**Next:** [Lab 9: Environment Cleanup and Wrap-up](../lab-9-cleanup/README.md)
