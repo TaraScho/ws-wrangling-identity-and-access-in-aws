@@ -6,9 +6,9 @@
 **Starting Identity:** `iamws-lambda-developer-user`
 **Target:** Crown jewels via hijacking `iamws-privileged-lambda` (execution role: `iamws-privileged-lambda-role` with `AdministratorAccess`)
 
-**The Vulnerability:** 
+**The Vulnerability:**
 - Lambda functions are serverless compute functions that run code when invoked
-- Lambda functions use attached **execution roles** to make AWS api calls to other AWS services
+- Lambda functions use attached **execution roles** to make AWS API calls to other AWS services
 - In our scenario, `iamws-lambda-developer-user` can update the code of ANY Lambda function — including a function called `iamws-privileged-lambda`, which runs with a dangerously permissive execution role with `AdministratorAccess` permissions.
 - By replacing the function code with a malicious payload, the developer's code executes with `AdministratorAccess` permissions in AWS via the lambda function.
 
@@ -178,7 +178,7 @@ Expected output:
 {
   "statusCode": 200,
   "identity": {
-    "Arn": "arn:aws:sts::767397689800:assumed-role/iamws-privileged-lambda-role/iamws-privileged-lambda"
+    "Arn": "arn:aws:sts::<aws account id>:assumed-role/iamws-privileged-lambda-role/iamws-privileged-lambda"
   },
   "crown_jewels": "  ============================================\n     YOU FOUND THE CROWN JEWELS! ..."
 }
@@ -229,7 +229,7 @@ aws iam detach-user-policy \
 
 **Step 3: Wait for AWS IAM permission changes to take effect**
 
-Wait a short amount of time for the IAM changes to propagate. 
+Wait a short amount of time for the IAM changes to propagate.
 
 ### Part E: Verify the Remediation
 
@@ -252,7 +252,7 @@ aws lambda update-function-code \
 Expected output:
 ```
 An error occurred (AccessDeniedException) when calling the UpdateFunctionCode operation:
-User: arn:aws:iam::767397689800:user/iamws-lambda-developer-user
+User: arn:aws:iam::<aws account id>:user/iamws-lambda-developer-user
 is not authorized to perform: lambda:UpdateFunctionCode on resource: ...iamws-privileged-lambda
 ```
 
@@ -283,12 +283,12 @@ Confirm the specific action is denied on the privileged function:
 iam-recon --account $ACCOUNT_ID argquery \
   --principal user/iamws-lambda-developer-user \
   --action lambda:UpdateFunctionCode \
-  --resource 'arn:aws:lambda:*:767397689800:function:iamws-privileged-lambda'
+  --resource "arn:aws:lambda:*:${ACCOUNT_ID}:function:iamws-privileged-lambda"
 ```
 
 Expected output:
 ```
-DENY user/iamws-lambda-developer-user cannot call lambda:UpdateFunctionCode with arn:aws:lambda:*:767397689800:function:iamws-privileged-lambda
+DENY user/iamws-lambda-developer-user cannot call lambda:UpdateFunctionCode with arn:aws:lambda:*:<aws account id>:function:iamws-privileged-lambda
 ```
 
 ### What You Learned

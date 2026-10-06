@@ -127,10 +127,10 @@ aws iam create-policy-version \
 Expected output:
 ```
 An error occurred (AccessDenied) when calling the CreatePolicyVersion operation:
-User: arn:aws:iam::767397689800:user/iamws-policy-developer-user
+User: arn:aws:iam::<aws account id>:user/iamws-policy-developer-user
 is not authorized to perform: iam:CreatePolicyVersion on resource:
-policy arn:aws:iam::767397689800:policy/iamws-developer-tools-policy
-with an explicit deny in a permissions boundary: arn:aws:iam::767397689800:policy/DeveloperBoundary
+policy arn:aws:iam::<aws account id>:policy/iamws-developer-tools-policy
+with an explicit deny in a permissions boundary: arn:aws:iam::<aws account id>:policy/DeveloperBoundary
 ```
 
 **Step 2: Confirm the crown jewels are still safe**
@@ -192,7 +192,7 @@ Expected output (the Scenario 2 defense already restricted the principal — the
     "Version": "2012-10-17",
     "Statement": [{
         "Effect": "Allow",
-        "Principal": { "AWS": "arn:aws:iam::767397689800:user/<your-admin-identity>" },
+        "Principal": { "AWS": "arn:aws:iam::<aws account id>:user/<your-admin-identity>" },
         "Action": "sts:AssumeRole"
     }]
 }
@@ -239,9 +239,9 @@ aws sts assume-role \
 Expected output:
 ```
 An error occurred (AccessDenied) when calling the AssumeRole operation:
-User: arn:aws:iam::767397689800:user/<your-admin-identity>
+User: arn:aws:iam::<aws account id>:user/<your-admin-identity>
 is not authorized to perform: sts:AssumeRole on resource:
-arn:aws:iam::767397689800:role/iamws-privileged-admin-role
+arn:aws:iam::<aws account id>:role/iamws-privileged-admin-role
 ```
 
 > [!NOTE]

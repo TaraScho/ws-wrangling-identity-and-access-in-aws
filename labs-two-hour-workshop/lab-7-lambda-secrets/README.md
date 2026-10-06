@@ -6,15 +6,15 @@
 **Starting Identity:** `iamws-secrets-reader-user`
 **Target:** Plaintext secrets in `iamws-app-with-secrets` Lambda environment variables
 
-**The Vulnerability:** 
-- `iamws-secrets-reader-user` can read Lambda function configurations, which include environment variables. 
+**The Vulnerability:**
+- `iamws-secrets-reader-user` can read Lambda function configurations, which include environment variables.
 - The Lambda function `iamws-app-with-secrets` stores database credentials, API keys, and admin passwords in plaintext environment variables — visible to anyone with `lambda:GetFunctionConfiguration`.
 
 **Real-world scenario:** Storing secrets directly in Lambda environment variables is one of the most common findings in cloud pen tests. Developers do it because it's the path of least resistance. The exposure surface is huge: any IAM principal with `lambda:GetFunctionConfiguration` (commonly handed out to support engineers, on-call rotations, monitoring tools, and "read-only" auditor roles) can dump every secret in plaintext with one API call. And because the secrets are usually credentials for things *outside* AWS — database passwords, SaaS API keys, third-party admin logins — IAM can't gate the blast radius once they're leaked.
 
 ### A note on the identities you'll switch between
 
-This lab involves three identities. 
+This lab involves three identities.
 
 | Identity | What it is | When you use it |
 | --- | --- | --- |
@@ -51,9 +51,9 @@ aws sts get-caller-identity --profile iamws-secrets-reader-user
 Expected output:
 ```json
 {
-    "UserId": "AIDAXXXXXXXXXXXXXXXXX",
-    "Account": "767397689800",
-    "Arn": "arn:aws:iam::767397689800:user/iamws-secrets-reader-user"
+    "UserId": "AIDA<user id>",
+    "Account": "<aws account id>",
+    "Arn": "arn:aws:iam::<aws account id>:user/iamws-secrets-reader-user"
 }
 ```
 
@@ -111,12 +111,12 @@ aws secretsmanager create-secret \
   }'
 ```
 
-Note the ARN in the output — you'll need the suffix (random characters after `iamws-app-secrets-`) in Step 3. This 6-character suffix is applied to the arns for all secret manager secrets. [Learn more here](https://docs.aws.amazon.com/secretsmanager/latest/userguide/whats-in-a-secret.html)
+Note the ARN in the output — you'll need the suffix (random characters after `iamws-app-secrets-`) in Step 3. This 6-character suffix is applied to the ARNs for all Secrets Manager secrets. [Learn more here](https://docs.aws.amazon.com/secretsmanager/latest/userguide/whats-in-a-secret.html)
 
 Example output:
 ```json
 {
-    "ARN": "arn:aws:secretsmanager:us-east-1:767397689800:secret:iamws-app-secrets-Q5nIvd",
+    "ARN": "arn:aws:secretsmanager:us-east-1:<aws account id>:secret:iamws-app-secrets-Q5nIvd",
     "Name": "iamws-app-secrets"
 }
 ```
@@ -197,7 +197,7 @@ aws secretsmanager get-secret-value \
 Expected output:
 ```
 An error occurred (AccessDeniedException) when calling the GetSecretValue operation:
-User: arn:aws:iam::767397689800:user/iamws-secrets-reader-user
+User: arn:aws:iam::<aws account id>:user/iamws-secrets-reader-user
 is not authorized to perform: secretsmanager:GetSecretValue on resource: iamws-app-secrets
 ```
 
@@ -217,7 +217,7 @@ Confirm the Lambda's execution role can access the secret (using the actual ARN 
 iam-recon --account $ACCOUNT_ID argquery \
   --principal role/iamws-app-lambda-role \
   --action secretsmanager:GetSecretValue \
-  --resource 'arn:aws:secretsmanager:us-east-1:767397689800:secret:iamws-app-secrets-<suffix>'
+  --resource "arn:aws:secretsmanager:us-east-1:${ACCOUNT_ID}:secret:iamws-app-secrets-<suffix>"
 ```
 
 Expected output: `ALLOW role/iamws-app-lambda-role can call secretsmanager:GetSecretValue with ...`

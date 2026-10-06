@@ -66,7 +66,7 @@ Pathfinding.cloud
     https://www.pathfinding.cloud/paths/ec2-001
 ```
 
-**In the interactive visualization:** search for `ci-runner-user`. The node is orange with a path to the `iamws-prod-deploy-role` node in read. Click the `ci-runner-user` user. Click the `iamws-ci-runner-policy` annotated with 1 risk. `iam-recon` highlights that this policy has an unscoped `iam:PassRole` permission.
+**In the interactive visualization:** search for `ci-runner-user`. The node is orange with a path to the `iamws-prod-deploy-role` node in red. Click the `ci-runner-user` user. Click the `iamws-ci-runner-policy` annotated with 1 risk. `iam-recon` highlights that this policy has an unscoped `iam:PassRole` permission.
 
 ### Part B: Understand the Attack
 

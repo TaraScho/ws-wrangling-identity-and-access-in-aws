@@ -8,7 +8,7 @@ Before the first attack scenario you'll set up your workstation, deploy the vuln
 - Six intentionally-vulnerable IAM users, plus a least-privilege `iamws-scanner-user` for read-only recon and an `iamws-lab-default` admin user for setup/debugging/cleanup, all deployed into your AWS sandbox
 - An [`iam-recon`](https://github.com/andrewkrug/iam-recon) graph of the account, ready to query offline
 - A working mental model of the five privilege escalation categories used by [pathfinding.cloud](https://pathfinding.cloud)
-- A short tour of the graph so you know where every scenario starts before we begin Scenario 1a
+- A short tour of the graph so you know where every scenario starts before we begin Scenario 1
 
 ---
 

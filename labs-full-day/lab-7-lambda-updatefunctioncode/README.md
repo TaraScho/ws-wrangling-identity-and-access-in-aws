@@ -166,7 +166,7 @@ Expected output:
 {
   "statusCode": 200,
   "identity": {
-    "Arn": "arn:aws:sts::767397689800:assumed-role/iamws-privileged-lambda-role/iamws-privileged-lambda"
+    "Arn": "arn:aws:sts::<aws account id>:assumed-role/iamws-privileged-lambda-role/iamws-privileged-lambda"
   },
   "crown_jewels": "  ============================================\n     YOU FOUND THE CROWN JEWELS! ..."
 }
@@ -217,7 +217,7 @@ aws iam detach-user-policy \
 
 **Step 3: Wait for AWS IAM permission changes to take effect**
 
-Wait a short amount of time for the IAM changes to propagate. 
+Wait a short amount of time for the IAM changes to propagate.
 
 ```bash
 sleep 60
@@ -244,7 +244,7 @@ aws lambda update-function-code \
 Expected output:
 ```
 An error occurred (AccessDeniedException) when calling the UpdateFunctionCode operation:
-User: arn:aws:iam::767397689800:user/iamws-lambda-developer-user
+User: arn:aws:iam::<aws account id>:user/iamws-lambda-developer-user
 is not authorized to perform: lambda:UpdateFunctionCode on resource: ...iamws-privileged-lambda
 ```
 
@@ -275,12 +275,12 @@ Confirm the specific action is denied on the privileged function:
 iam-recon --account $ACCOUNT_ID argquery \
   --principal user/iamws-lambda-developer-user \
   --action lambda:UpdateFunctionCode \
-  --resource 'arn:aws:lambda:*:767397689800:function:iamws-privileged-lambda'
+  --resource "arn:aws:lambda:*:${ACCOUNT_ID}:function:iamws-privileged-lambda"
 ```
 
 Expected output:
 ```
-DENY user/iamws-lambda-developer-user cannot call lambda:UpdateFunctionCode with arn:aws:lambda:*:767397689800:function:iamws-privileged-lambda
+DENY user/iamws-lambda-developer-user cannot call lambda:UpdateFunctionCode with arn:aws:lambda:*:<aws account id>:function:iamws-privileged-lambda
 ```
 
 > [!NOTE]

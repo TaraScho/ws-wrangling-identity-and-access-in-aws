@@ -6,8 +6,8 @@
 **Starting Identity:** `iamws-policy-developer-user`
 **Target:** Crown jewels in `s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt`
 
-**The Vulnerability:** 
-- As you saw in the first scenario, `iamws-policy-developer-user` can create new versions of IAM policies — including `iamws-developer-tools-policy`, which is attached to their own user. 
+**The Vulnerability:**
+- As you saw in the first scenario, `iamws-policy-developer-user` can create new versions of IAM policies — including `iamws-developer-tools-policy`, which is attached to their own user.
 - By creating a new version of the `iamws-developer-tools-policy` with administrator permissions and setting it as the default version of the policy, the `iamws-policy-developer-user` can grant themselves full admin access.
 
 In this lab, you will apply defenses to prevent this type of privilege escalation.
@@ -40,7 +40,7 @@ ALLOW user/iamws-policy-developer-user can call iam:CreatePolicyVersion with *
 ```
 
 > [!NOTE]
-> You will not use a `profile` argument for the following commands because you are running all defense steps as your `iamws-lab-default-user-admin` admin identity which is configured as the default AWS CLI profile.
+> You will not use a `profile` argument for the following commands because you are running all defense steps as your `iamws-lab-default` admin identity which is configured as the default AWS CLI profile.
 
 **Step 0: Reset the attack artifact — restore the original policy version**
 
@@ -54,7 +54,7 @@ aws iam set-default-policy-version --policy-arn $POLICY_ARN --version-id v1
 aws iam delete-policy-version --policy-arn $POLICY_ARN --version-id v2
 ```
 
-**Step 1: Write a permission boundary policy**
+**Step 1: Write a permissions boundary policy**
 
 ```bash
 cat > /tmp/boundary-policy.json << 'EOF'
@@ -109,9 +109,9 @@ aws iam put-user-permissions-boundary \
 ```
 
 What this boundary does:
-1. **Provides a ceiling for allowed actions for the `iamws-policy-developer-user`. Even if the user has a `*:*` policy version attached, the boundary caps what they can actually do.
+1. **Provides a ceiling for allowed actions for the `iamws-policy-developer-user`.** Even if the user has a `*:*` policy version attached, the boundary caps what they can actually do.
 1. **Explicit Deny on escalation actions:** `DenyPrivilegeEscalation` blocks the specific IAM mutations that enabled the self-escalation.
-1. **Self-protection:** `iam:DeleteUserPermissionsBoundary` is in the deny list — the user can't remove the permission boundary itself.
+1. **Self-protection:** `iam:DeleteUserPermissionsBoundary` is in the deny list — the user can't remove the permissions boundary itself.
 
 ### Part B: Verify the Remediation
 
@@ -130,10 +130,10 @@ aws iam create-policy-version \
 Expected output:
 ```
 An error occurred (AccessDenied) when calling the CreatePolicyVersion operation:
-User: arn:aws:iam::767397689800:user/iamws-policy-developer-user
+User: arn:aws:iam::<aws account id>:user/iamws-policy-developer-user
 is not authorized to perform: iam:CreatePolicyVersion on resource:
-policy arn:aws:iam::767397689800:policy/iamws-developer-tools-policy
-with an explicit deny in a permissions boundary: arn:aws:iam::767397689800:policy/DeveloperBoundary
+policy arn:aws:iam::<aws account id>:policy/iamws-developer-tools-policy
+with an explicit deny in a permissions boundary: arn:aws:iam::<aws account id>:policy/DeveloperBoundary
 ```
 
 **Step 2: Confirm the crown jewels are still safe**
@@ -195,7 +195,7 @@ Expected output (the Scenario 2 defense already restricted the principal — the
     "Version": "2012-10-17",
     "Statement": [{
         "Effect": "Allow",
-        "Principal": { "AWS": "arn:aws:iam::767397689800:user/iamws-lab-default" },
+        "Principal": { "AWS": "arn:aws:iam::<aws account id>:user/iamws-lab-default" },
         "Action": "sts:AssumeRole"
     }]
 }
@@ -242,9 +242,9 @@ aws sts assume-role \
 Expected output:
 ```
 An error occurred (AccessDenied) when calling the AssumeRole operation:
-User: arn:aws:iam::767397689800:user/<your-admin-identity>
+User: arn:aws:iam::<aws account id>:user/<your-admin-identity>
 is not authorized to perform: sts:AssumeRole on resource:
-arn:aws:iam::767397689800:role/iamws-privileged-admin-role
+arn:aws:iam::<aws account id>:role/iamws-privileged-admin-role
 ```
 
 > [!NOTE]

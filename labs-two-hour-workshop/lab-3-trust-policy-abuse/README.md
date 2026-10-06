@@ -12,7 +12,7 @@
 - A trust policy with `Principal: { "AWS": "arn:aws:iam::ACCOUNT_ID:root" }` is a common, documented pattern for *cross-account* role delegation. It trusts the partner account as a whole, and that account's administrators decide which of their principals has `sts:AssumeRole` permissions to assume the role.
 - An engineer writing a trust policy mistakenly copies this snippet from AWS docs or an internal Terraform module and replaces `ACCOUNT_ID` with their own same-account ID.
 - As designed, the trust policy now trusts the *entire* account. Any identity in the account that has `sts:AssumeRole` permission for that role can assume it.
-- If policies attached to other roles or users in the account are broad (and the often are, for example `sts:AssumeRole` on `Resource: "*"`, or managed policies like `AdministratorAccess`), a single compromised low-privilege identity can assume the role's permissions, potentially achieving full account takeover.
+- If policies attached to other roles or users in the account are broad (and they often are, for example `sts:AssumeRole` on `Resource: "*"`, or managed policies like `AdministratorAccess`), a single compromised low-privilege identity can assume the role's permissions, potentially achieving full account takeover.
 - **Fix:** name the specific role or user ARN as the principal, or keep `:root` and add a condition such as `aws:PrincipalArn`.
 
 ### A note on the identities you'll switch between
@@ -39,7 +39,7 @@ iam-recon --account $ACCOUNT_ID argquery --preset privesc --principal user/iamws
 Expected output:
 ```
   user/iamws-role-assumer-user can escalate to admin:
-    arn:aws:iam::652026215310:user/iamws-role-assumer-user user/iamws-role-assumer-user can assume role/iamws-privileged-admin-role arn:aws:iam::652026215310:role/iamws-privileged-admin-role
+    arn:aws:iam::<aws account id>:user/iamws-role-assumer-user user/iamws-role-assumer-user can assume role/iamws-privileged-admin-role arn:aws:iam::<aws account id>:role/iamws-privileged-admin-role
 ```
 
 `iam-recon` flags that `iamws-role-assumer-user` can reach the admin-tier `iamws-privileged-admin-role` via `sts:AssumeRole`.
@@ -77,13 +77,13 @@ Pathfinding.cloud
     https://www.pathfinding.cloud/paths/sts-001
 ```
 
-**In the interactive visualization:** 
+**In the interactive visualization:**
 
-- Search for `iamws-role-assumer-user`. 
-- You'll see an orange `iamws-role-assumer-user` node with an **STS** edge leading to the `iamws-privileged-admin-role` red admin role. 
-- Click the `iamws-role-assumer-user` node, under **policies** click the `iamws-role-assumer-policy`, `iam-recon` displays the policy inline. 
+- Search for `iamws-role-assumer-user`.
+- You'll see an orange `iamws-role-assumer-user` node with an **STS** edge leading to the `iamws-privileged-admin-role` red admin role.
+- Click the `iamws-role-assumer-user` node, under **policies** click the `iamws-role-assumer-policy`, `iam-recon` displays the policy inline.
 - `iam-recon` highlights that this policy, attached to the user, has `sts:AssumeRole` permissions with `resource:*`.
-- Close the `iamws-role-assumer-policy` window and return to the graph. 
+- Close the `iamws-role-assumer-policy` window and return to the graph.
 - Click the red `iamws-privileged-admin-role` admin role node and click the box labeled `role/iamws-privileged-admin-role-trust` — `iam-recon` displays the trust policy inline, showing `:root` as the trusted principal.
 
 ### Part B: Understand the Attack
@@ -96,9 +96,9 @@ Visit [pathfinding.cloud/paths/sts-001](https://pathfinding.cloud/paths/sts-001)
 - **Impact:** Any principal in the account with unscoped `sts:AssumeRole` can assume an admin-tier role
 
 > [!IMPORTANT]
-> Make sure that you understand the two things this attack requires: 
-> 1. The starting user/role must have permission to do the `sts:AssumeRole` action and 
-> 1. The **target role's trust policy** must allow the starting user/role to assume the role. Remember that trust policies are resource policies attached to the role itself. 
+> Make sure that you understand the two things this attack requires:
+> 1. The starting user/role must have permission to do the `sts:AssumeRole` action and
+> 1. The **target role's trust policy** must allow the starting user/role to assume the role. Remember that trust policies are resource policies attached to the role itself.
 
 ### Part C: Exploit the Vulnerability
 
@@ -111,9 +111,9 @@ aws sts get-caller-identity --profile iamws-role-assumer-user
 Expected output:
 ```json
 {
-    "UserId": "AIDAXXXXXXXXXXXXXXXXX",
-    "Account": "767397689800",
-    "Arn": "arn:aws:iam::767397689800:user/iamws-role-assumer-user"
+    "UserId": "AIDA<user id>",
+    "Account": "<aws account id>",
+    "Arn": "arn:aws:iam::<aws account id>:user/iamws-role-assumer-user"
 }
 ```
 
@@ -135,7 +135,7 @@ The `iamws-role-assumer-user` can't reach the crown jewels directly, but as you 
 
 **Step 3 (Optional): Inspect the vulnerable trust policy via the AWS CLI**
 
-You can use the AWS CLI to inspect the target role trust policy just as you did in `iam-recon`. 
+You can use the AWS CLI to inspect the target role trust policy just as you did in `iam-recon`.
 
 ```bash
 aws iam get-role --role-name iamws-privileged-admin-role \
@@ -149,7 +149,7 @@ Expected output:
     "Version": "2012-10-17",
     "Statement": [{
         "Effect": "Allow",
-        "Principal": { "AWS": "arn:aws:iam::767397689800:root" },
+        "Principal": { "AWS": "arn:aws:iam::<aws account id>:root" },
         "Action": "sts:AssumeRole"
     }]
 }
@@ -192,9 +192,9 @@ aws sts get-caller-identity
 Expected output:
 ```json
 {
-    "UserId": "AROAXXXXXXXXXXXXXXXXX:escalated",
-    "Account": "767397689800",
-    "Arn": "arn:aws:sts::767397689800:assumed-role/iamws-privileged-admin-role/escalated"
+    "UserId": "AROA<role id>:escalated",
+    "Account": "<aws account id>",
+    "Arn": "arn:aws:sts::<aws account id>:assumed-role/iamws-privileged-admin-role/escalated"
 }
 ```
 
@@ -214,21 +214,21 @@ The file contents appear — you escalated to a role with `AdministratorAccess` 
 **Step 1: Clean up the escalated session**
 
 ```bash
-unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN  
+unset AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
 ```
 
 Confirm you're back to `iamws-lab-default`.
 
 ```
-aws sts get-caller-identity 
+aws sts get-caller-identity
 ```
 
 Expected output:
 ```
 {
-    "UserId": "AIDAZPT6KPOHHHZEAO5BR",
-    "Account": "652026215310",
-    "Arn": "arn:aws:iam::652026215310:user/iamws-lab-default"
+    "UserId": "AIDA<user id>",
+    "Account": "<aws account id>",
+    "Arn": "arn:aws:iam::<aws account id>:user/iamws-lab-default"
 }
 ```
 
@@ -270,16 +270,16 @@ aws sts assume-role \
 Expected output:
 ```
 An error occurred (AccessDenied) when calling the AssumeRole operation:
-User: arn:aws:iam::767397689800:user/iamws-role-assumer-user
+User: arn:aws:iam::<aws account id>:user/iamws-role-assumer-user
 is not authorized to perform: sts:AssumeRole on resource:
-arn:aws:iam::767397689800:role/iamws-privileged-admin-role
+arn:aws:iam::<aws account id>:role/iamws-privileged-admin-role
 ```
 
 The attack is blocked.
 
 **Step 2: Verify with iam-recon**
 
-Because of your changes, you need to Refresh the `iam-recon` graph.
+Because of your changes, you need to refresh the `iam-recon` graph.
 
 ```bash
 iam-recon graph create --profile iamws-lab-default
@@ -296,7 +296,7 @@ Expected output:
   user/iamws-role-assumer-user cannot escalate to admin.
 ```
 
-The STS edge to `iamws-privileged-admin-role` is gone. 
+The STS edge to `iamws-privileged-admin-role` is gone.
 
 > [!NOTE]
 > Running `argquery --principal user/iamws-role-assumer-user --action sts:AssumeRole --resource <role-arn>` will still return `ALLOW` after the defense. iam-recon's per-action query only checks the caller's identity policy, not the role's trust policy. AWS `simulate-principal-policy` has the same limitation by design. The live `aws sts assume-role` attempt and the disappearance of the STS edge in `argquery --preset privesc` are the two authoritative verifications.

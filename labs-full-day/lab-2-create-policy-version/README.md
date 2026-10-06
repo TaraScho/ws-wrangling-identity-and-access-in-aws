@@ -77,9 +77,9 @@ aws sts get-caller-identity --profile iamws-policy-developer-user
 Expected output:
 ```json
 {
-    "UserId": "AIDAXXXXXXXXXXXXXXXXX",
-    "Account": "767397689800",
-    "Arn": "arn:aws:iam::767397689800:user/iamws-policy-developer-user"
+    "UserId": "AIDA<user id>",
+    "Account": "<aws account id>",
+    "Arn": "arn:aws:iam::<aws account id>:user/iamws-policy-developer-user"
 }
 ```
 

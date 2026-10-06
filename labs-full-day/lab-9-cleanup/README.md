@@ -20,7 +20,7 @@ End-to-end teardown for everything the full-day workshop creates: scenario exerc
 
 Each scenario's exploit and defense steps create resources or modify state outside of Terraform. Clear these first so `terraform destroy` has a clean run.
 
-### Scenario 1a — CreatePolicyVersion
+### Scenario 1 — CreatePolicyVersion
 
 If you ran the exploit (created v2 of `iamws-developer-tools-policy` and set it as default), reset it. Terraform can't delete a customer-managed policy that still has a non-default version attached.
 
@@ -163,7 +163,7 @@ This removes all eight workshop IAM users (six scenario users, `iamws-scanner-us
 > [!IMPORTANT]
 > `iamws-lab-default` is the profile you used to run every step above. Once `terraform destroy` finishes, that IAM user is gone — any further `--profile iamws-lab-default` calls will fail with `InvalidClientTokenId`. The remaining cleanup step only edits local files and doesn't need an AWS identity.
 
-If `terraform destroy` errors out, the most likely cause is a Step 1 artifact left behind — re-check Scenario 3 (running EC2 instance) and Scenario 1a (non-default policy version), fix, and re-run.
+If `terraform destroy` errors out, the most likely cause is a Step 1 artifact left behind — re-check Scenario 3 (running EC2 instance) and Scenario 1 (non-default policy version), fix, and re-run.
 
 ---
 

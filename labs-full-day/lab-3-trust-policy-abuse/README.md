@@ -71,8 +71,8 @@ Visit [pathfinding.cloud/paths/sts-001](https://pathfinding.cloud/paths/sts-001)
 - **Impact:** Any principal in the account can assume an admin-tier role
 
 > [!NOTE]
-> This attack requires two things: 
-> 1. The starting user/role must have permission to do the `sts:AssumeRole` action and 
+> This attack requires two things:
+> 1. The starting user/role must have permission to do the `sts:AssumeRole` action and
 > 1. The **target role's trust policy** must allow the starting user/role to assume the role. Remember that trust policies are resource policies attached to the role itself. They control who can assume the role, independent of what the caller's identity policy allows.
 
 ### Part C: Exploit the Vulnerability
@@ -86,9 +86,9 @@ aws sts get-caller-identity --profile iamws-role-assumer-user
 Expected output:
 ```json
 {
-    "UserId": "AIDAXXXXXXXXXXXXXXXXX",
-    "Account": "767397689800",
-    "Arn": "arn:aws:iam::767397689800:user/iamws-role-assumer-user"
+    "UserId": "AIDA<user id>",
+    "Account": "<aws account id>",
+    "Arn": "arn:aws:iam::<aws account id>:user/iamws-role-assumer-user"
 }
 ```
 
@@ -125,7 +125,7 @@ Expected output:
     "Version": "2012-10-17",
     "Statement": [{
         "Effect": "Allow",
-        "Principal": { "AWS": "arn:aws:iam::767397689800:root" },
+        "Principal": { "AWS": "arn:aws:iam::<aws account id>:root" },
         "Action": "sts:AssumeRole"
     }]
 }
@@ -168,16 +168,16 @@ aws sts get-caller-identity
 Expected output:
 ```json
 {
-    "UserId": "AROAXXXXXXXXXXXXXXXXX:escalated",
-    "Account": "767397689800",
-    "Arn": "arn:aws:sts::767397689800:assumed-role/iamws-privileged-admin-role/escalated"
+    "UserId": "AROA<role id>:escalated",
+    "Account": "<aws account id>",
+    "Arn": "arn:aws:sts::<aws account id>:assumed-role/iamws-privileged-admin-role/escalated"
 }
 ```
 
 > [!NOTE]
 > `escalated` is the role session name. You named the session earlier in step 4 when you ran the `assume-role` command with the `--role-session-name` argument.
 
-Try to access the crowned jewels again.
+Try to access the crown jewels again.
 
 ```bash
 aws s3 cp s3://iamws-crown-jewels-${ACCOUNT_ID}/flag.txt -
@@ -236,9 +236,9 @@ aws sts assume-role \
 Expected output:
 ```
 An error occurred (AccessDenied) when calling the AssumeRole operation:
-User: arn:aws:iam::767397689800:user/iamws-role-assumer-user
+User: arn:aws:iam::<aws account id>:user/iamws-role-assumer-user
 is not authorized to perform: sts:AssumeRole on resource:
-arn:aws:iam::767397689800:role/iamws-privileged-admin-role
+arn:aws:iam::<aws account id>:role/iamws-privileged-admin-role
 ```
 
 The attack is blocked.

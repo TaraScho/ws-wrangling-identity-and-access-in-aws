@@ -41,9 +41,9 @@ This lab juggles three identities. Keep this straight as you go:
 
 **The Vulnerability:** `iamws-ci-runner-user` has `iam:PassRole` that was *intended* only for Lambda deployments. But the permission has `Resource: "*"` and no `iam:PassedToService` condition. Without that condition, PassRole works for **any** AWS service — including EC2 — and **any** role, including privileged ones.
 
-**Real-world scenario:** 
+**Real-world scenario:**
 - A deployer principal has a policy allowing both `iam:PassRole` so they can hand Lambda functions their execution roles at deploy time, plus `ec2:RunInstances` for spinning up build and dev infrastructure.
-- The PassRole statement was copy-pasted from a Stack Overflow answer or AWS docs example that didn't include the `iam:PassedToService` condition. Without that condition, PassRole isn't actually scoped to Lambda — it works for any AWS service. 
+- The PassRole statement was copy-pasted from a Stack Overflow answer or AWS docs example that didn't include the `iam:PassedToService` condition. Without that condition, PassRole isn't actually scoped to Lambda — it works for any AWS service.
 - The attacker passes a privileged role to EC2 instead, launches an instance with the privileged role attached, and reads the role's credentials off the instance metadata service.
 
 > [!NOTE]
@@ -62,7 +62,7 @@ iam-recon --account $ACCOUNT_ID argquery --preset privesc --principal user/iamws
 Expected output:
 ```
   user/iamws-ci-runner-user can escalate to admin:
-    arn:aws:iam::652026215310:user/iamws-ci-runner-user user/iamws-ci-runner-user can launch EC2 instances with role/iamws-prod-deploy-role arn:aws:iam::652026215310:role/iamws-prod-deploy-role
+    arn:aws:iam::<aws account id>:user/iamws-ci-runner-user user/iamws-ci-runner-user can launch EC2 instances with role/iamws-prod-deploy-role arn:aws:iam::<aws account id>:role/iamws-prod-deploy-role
 ```
 
 Read this as: "`iamws-ci-runner-user` can reach the privileged `iamws-prod-deploy-role` **by way of EC2**."
@@ -101,7 +101,7 @@ Expected output:
     https://www.pathfinding.cloud/paths/ec2-001
 ```
 
-Notice the matched [ec2-001] path needs **two** permissions together: `iam:PassRole` *and* `ec2:RunInstances`. 
+Notice the matched [ec2-001] path needs **two** permissions together: `iam:PassRole` *and* `ec2:RunInstances`.
 
 **In the interactive visualization:** search for `ci-runner-user`. The node is orange with a path to the `iamws-prod-deploy-role` node in red. Click the `ci-runner-user` user. Click the `iamws-ci-runner-policy` annotated with 1 risk. `iam-recon` highlights that this policy has an unscoped `iam:PassRole` permission.
 
@@ -114,7 +114,7 @@ Visit [pathfinding.cloud/paths/ec2-001](https://pathfinding.cloud/paths/ec2-001)
 - **Root cause:** Missing `iam:PassedToService` condition key
 - **Impact:** Access to role permissions via EC2
 
-The point to internalise before you exploit: **PassRole attacks are indirect.** The attacker doesn't call `AssumeRole` and doesn't become the role directly. They hand the role to a compute service, launch the resource, and let the service expose the role's credentials. One fix, therefore, isn't to remove PassRole — which in our scenario is legitamitely needed for the developer's work with Lambda functions, it's to scope *which role* can be passed and *to which service* it may be passed.
+The point to internalise before you exploit: **PassRole attacks are indirect.** The attacker doesn't call `AssumeRole` and doesn't become the role directly. They hand the role to a compute service, launch the resource, and let the service expose the role's credentials. One fix, therefore, isn't to remove PassRole — which in our scenario is legitimately needed for the developer's work with Lambda functions, it's to scope *which role* can be passed and *to which service* it may be passed.
 
 ### Part C: Exploit the Vulnerability
 
@@ -163,7 +163,7 @@ echo "Subnet: $SUBNET_ID"
 
 **Step 4: See which role the instance profile carries**
 
-The`iamws-prod-deploy-profile` instance profile is already created for you as part of the lab infrastructure. It "wraps" the privileged `iamws-prod-deploy-role`. As  you learned earlier, an *instance profile* is just a thin container for exactly one IAM role in the context of attaching it to an ec2 instance. You can verify this with the following command: 
+The `iamws-prod-deploy-profile` instance profile is already created for you as part of the lab infrastructure. It "wraps" the privileged `iamws-prod-deploy-role`. As you learned earlier, an *instance profile* is just a thin container for exactly one IAM role in the context of attaching it to an ec2 instance. You can verify this with the following command:
 
 ```bash
 aws iam get-instance-profile \
@@ -253,9 +253,9 @@ Expected output
 
 ```
 {
-    "Account": "652026215310",
-    "UserId": "AROAZPT6KPOHIH747RGUA:i-02a4efee5e583a76e",
-    "Arn": "arn:aws:sts::652026215310:assumed-role/iamws-prod-deploy-role/i-02a4efee5e583a76e"
+    "Account": "<aws account id>",
+    "UserId": "AROA<role id>:i-02a4efee5e583a76e",
+    "Arn": "arn:aws:sts::<aws account id>:assumed-role/iamws-prod-deploy-role/i-02a4efee5e583a76e"
 }
 ```
 
@@ -329,7 +329,7 @@ aws iam put-user-policy \
 - **Resource: `iamws-ci-runner-role`** — `iam:PassRole` is only allowed for `ci-runner-role`; if the user tries to pass `iamws-prod-deploy-role` or any other role, this statement doesn't apply
 - **Condition: `iam:PassedToService: lambda.amazonaws.com`** — only when the destination is Lambda; an `ec2:RunInstances` call with a `--iam-instance-profile` flag targets EC2, not Lambda, so this condition fails and the statement does nothing
 
-If any one of the three doesn't match, the statement will not evaluate to allow. 
+If any one of the three doesn't match, the statement will not evaluate to allow.
 
 **Step 2: Detach the overly-permissive managed policy**
 

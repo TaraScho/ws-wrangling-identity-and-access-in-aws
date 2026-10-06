@@ -8,7 +8,7 @@ Before the first attack scenario you'll set up your workstation, deploy the vuln
 - Six intentionally-vulnerable IAM users, plus a least-privilege `iamws-scanner-user` for read-only recon and an `iamws-lab-default` admin user for setup/debugging/cleanup, all deployed into your AWS sandbox
 - An [`iam-recon`](https://github.com/andrewkrug/iam-recon) graph of the account, ready to query offline
 - A working mental model of the five privilege escalation categories used by [pathfinding.cloud](https://pathfinding.cloud)
-- A short tour of the graph so you know where every scenario starts before we begin Scenario 1a
+- A short tour of the graph so you know where every scenario starts before we begin Scenario 1
 
 ---
 
@@ -28,7 +28,7 @@ In that sandbox account you'll need an IAM identity (user or role) with permissi
 `ReadOnlyAccess` plus the create permissions above is sufficient. An admin identity in a sandbox account also works.
 
 > [!IMPORTANT]
-> Never deploy the lab into a production AWS account. The Terraform that runs in Step 4 creates IAM users with deliberately exploitable permissions. Use a dedicated sandbox. We will provide instructions at the end to clean up the account. 
+> Never deploy the lab into a production AWS account. The Terraform that runs in Step 4 creates IAM users with deliberately exploitable permissions. Use a dedicated sandbox. We will provide instructions at the end to clean up the account.
 
 > [!NOTE]
 > Don't have an AWS sandbox account? AWS provides [free-tier account sign-up](https://aws.amazon.com/free) instructions.
@@ -42,7 +42,7 @@ You'll run the labs from a terminal on your own machine or workstation. The setu
 - **macOS or Linux users** — you're already good to go. Both the Intel/AMD (`x86_64`) and Apple Silicon / ARM (`aarch64`) architectures are supported.
 - **Windows users** — some workshop tools don't ship a Windows build (`iam-recon` has no native Windows binary), so we suggest running the labs inside a VM or setting up **WSL2 with Ubuntu**, which gives you a real Linux environment on your Windows machine. See Microsoft's [WSL2 install guide](https://learn.microsoft.com/en-us/windows/wsl/install) to set it up, then run every command in this workshop from your Ubuntu shell.
 
-It's your choice whether to work from your main OS directly or from a dedicated VM. If you'd rather keep the workshop's tooling and AWS credentials isolated from your day-to-day machine, you can use your virtualization tool of choice such as VirtualBox or Tart. More information about virtualization tools workshop attendees have used in the past is available [in this document](https://docs.google.com/document/d/1bLbSTfht3QR-hxu03v33n1x-NdZ5XBlaXHqSjfx8-gY/edit?usp=sharing). 
+It's your choice whether to work from your main OS directly or from a dedicated VM. If you'd rather keep the workshop's tooling and AWS credentials isolated from your day-to-day machine, you can use your virtualization tool of choice such as VirtualBox or Tart. More information about virtualization tools workshop attendees have used in the past is available [in this document](https://docs.google.com/document/d/1bLbSTfht3QR-hxu03v33n1x-NdZ5XBlaXHqSjfx8-gY/edit?usp=sharing).
 
 **If you are not already familiar with virtualization and virtual machines, we do not recommend trying to set up a VM. We will provide clean up instructions for your local machine at the end of the workshop.**
 
@@ -239,7 +239,7 @@ Graph Data for Account:  <account ID>
 ```
 
 > [!NOTE]
-> Your sandbox account will likely have less nodes and edges, this is just example output.
+> Your sandbox account will likely have fewer nodes and edges, this is just example output.
 
 Set the AWS account ID in your environment.
 
